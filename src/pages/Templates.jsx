@@ -12,6 +12,8 @@ import {
   Search
 } from 'lucide-react';
 import { useCRM } from '../store/CRMContext';
+import { useTeam } from '../store/TeamContext';
+import { Users } from 'lucide-react';
 
 const CATEGORIES = [
   { id: 'all', label: 'All Templates', icon: FileText },
@@ -23,6 +25,7 @@ const CATEGORIES = [
 
 export default function Templates() {
   const { templates, contacts, addTemplate, updateTemplate, deleteTemplate, fillTemplate } = useCRM();
+  const { isInTeam } = useTeam();
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedContact, setSelectedContact] = useState('');
@@ -32,7 +35,8 @@ export default function Templates() {
   const [newTemplate, setNewTemplate] = useState({
     name: '',
     category: 'follow_up',
-    content: ''
+    content: '',
+    isTeamShared: false
   });
 
   const filteredTemplates = templates.filter(t => {
@@ -56,7 +60,7 @@ export default function Templates() {
   const handleSaveNew = () => {
     if (!newTemplate.name || !newTemplate.content) return;
     addTemplate(newTemplate);
-    setNewTemplate({ name: '', category: 'follow_up', content: '' });
+    setNewTemplate({ name: '', category: 'follow_up', content: '', isTeamShared: false });
     setShowNewTemplate(false);
   };
 
@@ -148,7 +152,15 @@ export default function Templates() {
                   style={{ animationDelay: `${index * 30}ms` }}
                 >
                   <div className="template-card-header">
-                    <h3 className="template-card-name">{template.name}</h3>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-sm)' }}>
+                      <h3 className="template-card-name">{template.name}</h3>
+                      {template.isTeamShared && (
+                        <span className="badge" style={{ background: 'var(--purple-400)', color: 'white', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          <Users size={12} />
+                          Team
+                        </span>
+                      )}
+                    </div>
                     <div className="template-card-actions">
                       <button 
                         className="btn btn-icon btn-ghost"
@@ -243,6 +255,23 @@ export default function Templates() {
                   </select>
                 </div>
               </div>
+              {isInTeam && (
+                <div className="form-group">
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-sm)', cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={newTemplate.isTeamShared}
+                      onChange={(e) => setNewTemplate({ ...newTemplate, isTeamShared: e.target.checked })}
+                      style={{ cursor: 'pointer' }}
+                    />
+                    <Users size={16} style={{ color: 'var(--purple-400)' }} />
+                    <span>Share with team</span>
+                  </label>
+                  <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: 'var(--spacing-xs)', marginLeft: '24px' }}>
+                    Make this template available to all team members
+                  </p>
+                </div>
+              )}
               <div className="form-group">
                 <label>Message Content</label>
                 <textarea
@@ -307,6 +336,23 @@ Use these variables:
                   </select>
                 </div>
               </div>
+              {isInTeam && (
+                <div className="form-group">
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-sm)', cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={editingTemplate.isTeamShared || false}
+                      onChange={(e) => setEditingTemplate({ ...editingTemplate, isTeamShared: e.target.checked })}
+                      style={{ cursor: 'pointer' }}
+                    />
+                    <Users size={16} style={{ color: 'var(--purple-400)' }} />
+                    <span>Share with team</span>
+                  </label>
+                  <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: 'var(--spacing-xs)', marginLeft: '24px' }}>
+                    Make this template available to all team members
+                  </p>
+                </div>
+              )}
               <div className="form-group">
                 <label>Message Content</label>
                 <textarea

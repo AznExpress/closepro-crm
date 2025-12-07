@@ -21,6 +21,7 @@ export default function EditContactModal({ contact, onClose }) {
     notes: contact.notes || '',
     dealStage: contact.dealStage || '',
     dealValue: contact.dealValue ? contact.dealValue.toString() : '',
+    commissionNotes: contact.commissionNotes || '',
     expectedCloseDate: contact.expectedCloseDate ? format(new Date(contact.expectedCloseDate), 'yyyy-MM-dd') : ''
   });
 
@@ -41,6 +42,7 @@ export default function EditContactModal({ contact, onClose }) {
       dealValue: formData.dealValue ? parseFloat(formData.dealValue.replace(/[^0-9.]/g, '')) : null,
       expectedCloseDate: formData.expectedCloseDate ? new Date(formData.expectedCloseDate).toISOString() : null,
       birthday: formData.birthday || null,
+      commissionNotes: formData.commissionNotes || null,
       homeAnniversary: formData.homeAnniversary || null
     });
     onClose();
@@ -213,6 +215,19 @@ export default function EditContactModal({ contact, onClose }) {
                       value={formData.dealValue}
                       onChange={handleChange}
                       placeholder="$500,000"
+                    />
+                  </div>
+                </div>
+
+                <div className="form-row">
+                  <div className="form-group" style={{ width: '100%' }}>
+                    <label>Commission Notes</label>
+                    <textarea
+                      name="commissionNotes"
+                      value={formData.commissionNotes}
+                      onChange={handleChange}
+                      placeholder="Commission split details, notes..."
+                      rows={3}
                     />
                   </div>
                 </div>

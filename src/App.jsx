@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-route
 import { AuthProvider, useAuth } from './store/AuthContext';
 import { SubscriptionProvider } from './store/SubscriptionContext';
 import { CRMProvider } from './store/CRMContext';
+import { TeamProvider } from './store/TeamContext';
 import Layout from './components/Layout';
 import Dashboard from './pages/Dashboard';
 import Contacts from './pages/Contacts';
@@ -16,6 +17,8 @@ import Pricing from './pages/Pricing';
 import Subscription from './pages/Subscription';
 import Calendar from './pages/Calendar';
 import CalendarSettings from './pages/CalendarSettings';
+import TeamSettings from './pages/TeamSettings';
+import TeamStats from './pages/TeamStats';
 import './App.css';
 
 // Protected route wrapper
@@ -77,9 +80,11 @@ function AppRoutes() {
       {/* Protected routes */}
       <Route path="/" element={
         <ProtectedRoute>
-          <CRMProvider>
-            <Layout />
-          </CRMProvider>
+          <TeamProvider>
+            <CRMProvider>
+              <Layout />
+            </CRMProvider>
+          </TeamProvider>
         </ProtectedRoute>
       }>
         <Route index element={<Dashboard />} />
@@ -93,6 +98,8 @@ function AppRoutes() {
         <Route path="subscription" element={<Subscription />} />
         <Route path="calendar" element={<Calendar />} />
         <Route path="calendar-settings" element={<CalendarSettings />} />
+        <Route path="team-settings" element={<TeamSettings />} />
+        <Route path="team-stats" element={<TeamStats />} />
       </Route>
 
       {/* Catch all */}

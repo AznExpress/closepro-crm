@@ -117,7 +117,22 @@ ALTER TABLE templates ENABLE ROW LEVEL SECURITY;
 
 -- Contacts: Users can only see their own contacts
 CREATE POLICY "Users can view own contacts" ON contacts
-  FOR SELECT USING (auth.uid() = user_id);
+  FOR SELECT USING (
+    auth.uid() = user_id
+    OR (
+      -- Allow viewing team member contacts if user is in team and opted in
+      EXISTS (
+        SELECT 1 FROM team_members tm
+        WHERE tm.user_id = auth.uid()
+        AND tm.show_team_deals = true
+        AND EXISTS (
+          SELECT 1 FROM team_members tm2
+          WHERE tm2.team_id = tm.team_id
+          AND tm2.user_id = contacts.user_id
+        )
+      )
+    )
+  );
 
 CREATE POLICY "Users can insert own contacts" ON contacts
   FOR INSERT WITH CHECK (auth.uid() = user_id);
@@ -438,4 +453,194 @@ CREATE TRIGGER update_calendar_events_updated_at
   BEFORE UPDATE ON calendar_events
   FOR EACH ROW
   EXECUTE FUNCTION update_updated_at_column();
+
+-- =====================
+-- TEAMS TABLE
+-- =====================
+CREATE TABLE teams (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  name TEXT NOT NULL,
+  owner_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  
+  -- Settings
+  allow_auto_join BOOLEAN DEFAULT FALSE,
+  
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- =====================
+-- TEAM MEMBERS TABLE
+-- =====================
+CREATE TABLE team_members (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  team_id UUID REFERENCES teams(id) ON DELETE CASCADE NOT NULL,
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  
+  -- Member settings
+  show_team_deals BOOLEAN DEFAULT FALSE, -- Opt-in to see team deals
+  
+  joined_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(team_id, user_id)
+);
+
+-- =====================
+-- LEAD HANDOFFS TABLE
+-- =====================
+CREATE TABLE lead_handoffs (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  contact_id UUID REFERENCES contacts(id) ON DELETE CASCADE NOT NULL,
+  from_user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+  to_user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  
+  -- Handoff details
+  handoff_type TEXT CHECK (handoff_type IN ('assigned', 'requested')) NOT NULL,
+  status TEXT CHECK (status IN ('pending', 'accepted', 'declined')) DEFAULT 'pending',
+  note TEXT,
+  
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  responded_at TIMESTAMPTZ
+);
+
+-- =====================
+-- TEAM NOTES TABLE
+-- =====================
+CREATE TABLE team_notes (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  contact_id UUID REFERENCES contacts(id) ON DELETE CASCADE NOT NULL,
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  team_id UUID REFERENCES teams(id) ON DELETE CASCADE NOT NULL,
+  
+  note TEXT NOT NULL,
+  is_internal BOOLEAN DEFAULT TRUE, -- Internal team note (not visible to contact)
+  
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Enable RLS
+ALTER TABLE teams ENABLE ROW LEVEL SECURITY;
+ALTER TABLE team_members ENABLE ROW LEVEL SECURITY;
+ALTER TABLE lead_handoffs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE team_notes ENABLE ROW LEVEL SECURITY;
+
+-- Teams policies
+CREATE POLICY "Users can view teams they belong to" ON teams
+  FOR SELECT USING (
+    id IN (SELECT team_id FROM team_members WHERE user_id = auth.uid())
+    OR owner_id = auth.uid()
+  );
+
+CREATE POLICY "Users can create teams" ON teams
+  FOR INSERT WITH CHECK (auth.uid() = owner_id);
+
+CREATE POLICY "Team owners can update teams" ON teams
+  FOR UPDATE USING (auth.uid() = owner_id);
+
+-- Team members policies
+CREATE POLICY "Users can view team members of their teams" ON team_members
+  FOR SELECT USING (
+    team_id IN (SELECT team_id FROM team_members WHERE user_id = auth.uid())
+  );
+
+CREATE POLICY "Team owners can add members" ON team_members
+  FOR INSERT WITH CHECK (
+    team_id IN (SELECT id FROM teams WHERE owner_id = auth.uid())
+  );
+
+CREATE POLICY "Users can update own team member settings" ON team_members
+  FOR UPDATE USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can leave teams" ON team_members
+  FOR DELETE USING (auth.uid() = user_id);
+
+-- Lead handoffs policies
+CREATE POLICY "Users can view handoffs for their contacts or assigned to them" ON lead_handoffs
+  FOR SELECT USING (
+    contact_id IN (SELECT id FROM contacts WHERE user_id = auth.uid())
+    OR to_user_id = auth.uid()
+    OR from_user_id = auth.uid()
+  );
+
+CREATE POLICY "Users can create handoffs" ON lead_handoffs
+  FOR INSERT WITH CHECK (
+    contact_id IN (SELECT id FROM contacts WHERE user_id = auth.uid())
+    OR from_user_id = auth.uid()
+  );
+
+CREATE POLICY "Users can update handoffs assigned to them" ON lead_handoffs
+  FOR UPDATE USING (to_user_id = auth.uid());
+
+-- Team notes policies
+CREATE POLICY "Users can view team notes for their team contacts" ON team_notes
+  FOR SELECT USING (
+    team_id IN (SELECT team_id FROM team_members WHERE user_id = auth.uid())
+  );
+
+CREATE POLICY "Users can create team notes" ON team_notes
+  FOR INSERT WITH CHECK (
+    auth.uid() = user_id
+    AND team_id IN (SELECT team_id FROM team_members WHERE user_id = auth.uid())
+  );
+
+CREATE POLICY "Users can update own team notes" ON team_notes
+  FOR UPDATE USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can delete own team notes" ON team_notes
+  FOR DELETE USING (auth.uid() = user_id);
+
+-- Indexes
+CREATE INDEX idx_team_members_team_id ON team_members(team_id);
+CREATE INDEX idx_team_members_user_id ON team_members(user_id);
+CREATE INDEX idx_lead_handoffs_contact_id ON lead_handoffs(contact_id);
+CREATE INDEX idx_lead_handoffs_to_user ON lead_handoffs(to_user_id, status);
+CREATE INDEX idx_team_notes_contact_id ON team_notes(contact_id);
+CREATE INDEX idx_team_notes_team_id ON team_notes(team_id);
+
+-- Triggers
+CREATE TRIGGER update_teams_updated_at
+  BEFORE UPDATE ON teams
+  FOR EACH ROW
+  EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_team_notes_updated_at
+  BEFORE UPDATE ON team_notes
+  FOR EACH ROW
+  EXECUTE FUNCTION update_updated_at_column();
+
+-- Update contacts table to add commission field
+ALTER TABLE contacts ADD COLUMN IF NOT EXISTS commission_notes TEXT;
+
+-- Update templates table to support team sharing
+ALTER TABLE templates ADD COLUMN IF NOT EXISTS is_team_shared BOOLEAN DEFAULT FALSE;
+ALTER TABLE templates ADD COLUMN IF NOT EXISTS team_id UUID REFERENCES teams(id) ON DELETE SET NULL;
+
+-- Function to get team members with emails
+-- Note: This requires the function to run with SECURITY DEFINER to access auth.users
+CREATE OR REPLACE FUNCTION get_team_members_with_emails(team_id UUID)
+RETURNS TABLE (
+  id UUID,
+  user_id UUID,
+  team_id UUID,
+  show_team_deals BOOLEAN,
+  joined_at TIMESTAMPTZ,
+  email TEXT
+) 
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+BEGIN
+  RETURN QUERY
+  SELECT 
+    tm.id,
+    tm.user_id,
+    tm.team_id,
+    tm.show_team_deals,
+    tm.joined_at,
+    COALESCE(au.email, 'Unknown') as email
+  FROM team_members tm
+  LEFT JOIN auth.users au ON tm.user_id = au.id
+  WHERE tm.team_id = get_team_members_with_emails.team_id;
+END;
+$$;
 

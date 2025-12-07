@@ -20,6 +20,7 @@ export default function AddContactModal({ onClose, defaultDealStage = null }) {
     // Deal fields
     dealStage: defaultDealStage || '',
     dealValue: '',
+    commissionNotes: '',
     expectedCloseDate: ''
   });
 
@@ -37,6 +38,7 @@ export default function AddContactModal({ onClose, defaultDealStage = null }) {
     addContact({
       ...formData,
       dealValue: formData.dealValue ? parseFloat(formData.dealValue.replace(/[^0-9.]/g, '')) : null,
+      commissionNotes: formData.commissionNotes || null,
       expectedCloseDate: formData.expectedCloseDate ? new Date(formData.expectedCloseDate).toISOString() : null,
       birthday: formData.birthday || null
     });
@@ -216,6 +218,19 @@ export default function AddContactModal({ onClose, defaultDealStage = null }) {
                       value={formData.dealValue}
                       onChange={handleChange}
                       placeholder="$500,000"
+                    />
+                  </div>
+                </div>
+
+                <div className="form-row">
+                  <div className="form-group" style={{ width: '100%' }}>
+                    <label>Commission Notes</label>
+                    <textarea
+                      name="commissionNotes"
+                      value={formData.commissionNotes}
+                      onChange={handleChange}
+                      placeholder="Commission split details, notes..."
+                      rows={3}
                     />
                   </div>
                 </div>

@@ -1,12 +1,15 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
-import { Home, Users, Bell, LogOut, Building2, TrendingUp, FileText, Mail, CreditCard, Calendar as CalendarIcon } from 'lucide-react';
+import { Home, Users, Bell, LogOut, Building2, TrendingUp, FileText, Mail, CreditCard, Calendar as CalendarIcon, BarChart3 } from 'lucide-react';
 import { useCRM } from '../store/CRMContext';
 import { useAuth } from '../store/AuthContext';
+import { useTeam } from '../store/TeamContext';
+import HandoffNotifications from './HandoffNotifications';
 
 export default function Layout() {
   const navigate = useNavigate();
   const { overdueReminders, todayReminders, pipelineValue } = useCRM();
   const { signOut, getUserName, getUserInitials, isDemo } = useAuth();
+  const { isInTeam } = useTeam();
   
   const urgentCount = overdueReminders.length + todayReminders.length;
 
@@ -92,6 +95,25 @@ export default function Layout() {
             Templates
           </NavLink>
 
+          {isInTeam && (
+            <>
+              <NavLink 
+                to="/team-stats" 
+                className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
+              >
+                <BarChart3 size={20} className="nav-icon" />
+                Team Stats
+              </NavLink>
+              <NavLink 
+                to="/team-settings" 
+                className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
+              >
+                <Users size={20} className="nav-icon" />
+                Team
+              </NavLink>
+            </>
+          )}
+
           <NavLink 
             to="/email-settings" 
             className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
@@ -131,6 +153,8 @@ export default function Layout() {
       <main className="main-content">
         <Outlet />
       </main>
+      
+      <HandoffNotifications />
     </div>
   );
 }

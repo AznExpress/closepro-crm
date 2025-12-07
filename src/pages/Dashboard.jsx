@@ -19,6 +19,7 @@ import { useCRM } from '../store/CRMContext';
 import { format, formatDistanceToNow, isToday, isPast } from 'date-fns';
 import AddContactModal from '../components/AddContactModal';
 import AddReminderModal from '../components/AddReminderModal';
+import TeamActivityFeed from '../components/TeamActivityFeed';
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -323,6 +324,11 @@ export default function Dashboard() {
               </div>
             </div>
           </section>
+        </div>
+
+        {/* Team Activity Feed */}
+        <div style={{ marginTop: 'var(--spacing-xl)' }}>
+          <TeamActivityFeed limit={10} />
         </div>
       </div>
 

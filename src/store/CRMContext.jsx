@@ -3,6 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { addDays, isSameDay } from 'date-fns';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { useAuth } from './AuthContext';
+import { useTeam } from './TeamContext';
 
 const CRMContext = createContext(null);
 
@@ -230,6 +231,7 @@ function dbToContact(row) {
     expectedCloseDate: row.expected_close_date,
     birthday: row.birthday,
     homeAnniversary: row.home_anniversary,
+    commissionNotes: row.commission_notes,
     lastContact: row.last_contact,
     createdAt: row.created_at,
     activities: row.activities || [],
@@ -255,7 +257,8 @@ function contactToDb(contact, userId) {
     deal_value: contact.dealValue || null,
     expected_close_date: contact.expectedCloseDate || null,
     birthday: contact.birthday || null,
-    home_anniversary: contact.homeAnniversary || null
+    home_anniversary: contact.homeAnniversary || null,
+    commission_notes: contact.commissionNotes || null
   };
 }
 
@@ -288,6 +291,7 @@ function reminderToDb(reminder, userId) {
 export function CRMProvider({ children }) {
   const [state, dispatch] = useReducer(reducer, initialState);
   const { user, isAuthenticated } = useAuth();
+  const { team, teamMembers, showTeamDeals } = useTeam();
 
   // Load data from Supabase or localStorage
   const loadData = useCallback(async () => {
@@ -297,13 +301,33 @@ export function CRMProvider({ children }) {
 
     if (isSupabaseConfigured()) {
       try {
-        // Fetch contacts with activities and showings
-        const { data: contactsData, error: contactsError } = await supabase
+        // Build user IDs list (own + team members if opted in)
+        let userIds = [user.id];
+        if (team && showTeamDeals && teamMembers.length > 0) {
+          const teamUserIds = teamMembers.map(m => m.user_id);
+          userIds = [...new Set([user.id, ...teamUserIds])];
+        }
+
+        // Fetch contacts - RLS will handle filtering, but we'll also filter client-side
+        let contactsQuery = supabase
           .from('contacts')
           .select('*')
           .order('last_contact', { ascending: false });
 
+        // If team deals enabled, we need to get team contacts
+        // Note: RLS policies need to allow this, otherwise we'll need separate queries
+        const { data: contactsData, error: contactsError } = await contactsQuery;
+
         if (contactsError) throw contactsError;
+
+        // Filter contacts to only include user's contacts + team contacts if opted in
+        const filteredContactsData = (contactsData || []).filter(c => {
+          if (c.user_id === user.id) return true;
+          if (team && showTeamDeals) {
+            return teamMembers.some(m => m.user_id === c.user_id);
+          }
+          return false;
+        });
 
         // Fetch activities for all contacts
         const { data: activitiesData } = await supabase
@@ -325,11 +349,22 @@ export function CRMProvider({ children }) {
 
         if (remindersError) throw remindersError;
 
-        // Fetch templates
-        const { data: templatesData } = await supabase
+        // Fetch templates (own + team shared if in team)
+        let templatesQuery = supabase
           .from('templates')
           .select('*')
           .order('created_at', { ascending: true });
+
+        // If in team, also get team shared templates
+        if (team) {
+          templatesQuery = supabase
+            .from('templates')
+            .select('*')
+            .or(`user_id.eq.${user.id},and(is_team_shared.eq.true,team_id.eq.${team.id})`)
+            .order('created_at', { ascending: true });
+        }
+
+        const { data: templatesData } = await templatesQuery;
 
         // Group activities and showings by contact
         const activitiesByContact = (activitiesData || []).reduce((acc, a) => {
@@ -355,11 +390,12 @@ export function CRMProvider({ children }) {
           return acc;
         }, {});
 
-        // Transform contacts
-        const contacts = (contactsData || []).map(c => ({
+        // Transform contacts and mark team deals
+        const contacts = filteredContactsData.map(c => ({
           ...dbToContact(c),
           activities: activitiesByContact[c.id] || [],
-          showings: showingsByContact[c.id] || []
+          showings: showingsByContact[c.id] || [],
+          isTeamDeal: c.user_id !== user.id && team && showTeamDeals
         }));
 
         const reminders = (remindersData || []).map(dbToReminder);
@@ -370,7 +406,9 @@ export function CRMProvider({ children }) {
               name: t.name,
               category: t.category,
               content: t.content,
-              isDefault: t.is_default
+              isDefault: t.is_default,
+              isTeamShared: t.is_team_shared || false,
+              teamId: t.team_id
             }))
           : DEFAULT_TEMPLATES;
 
@@ -697,7 +735,9 @@ export function CRMProvider({ children }) {
             user_id: user.id,
             name: template.name,
             category: template.category,
-            content: template.content
+            content: template.content,
+            is_team_shared: template.isTeamShared || false,
+            team_id: template.isTeamShared && team ? team.id : null
           })
           .select()
           .single();
@@ -728,7 +768,9 @@ export function CRMProvider({ children }) {
           .update({
             name: template.name,
             category: template.category,
-            content: template.content
+            content: template.content,
+            is_team_shared: template.isTeamShared || false,
+            team_id: template.isTeamShared && team ? team.id : null
           })
           .eq('id', template.id);
       } catch (error) {
@@ -946,3 +988,4 @@ function getSampleData() {
 
   return { contacts: sampleContacts, reminders: sampleReminders };
 }
+

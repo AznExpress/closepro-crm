@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { 
   ArrowLeft,
@@ -31,6 +31,10 @@ import { format, formatDistanceToNow, isPast, isToday } from 'date-fns';
 import AddReminderModal from '../components/AddReminderModal';
 import EditContactModal from '../components/EditContactModal';
 import CreateEventModal from '../components/CreateEventModal';
+import HandoffModal from '../components/HandoffModal';
+import { useTeam } from '../store/TeamContext';
+import { Users, MessageSquare, Plus, X } from 'lucide-react';
+import { addTeamNote, getTeamNotes } from '../services/teamService';
 
 export default function ContactDetail() {
   const { id } = useParams();
@@ -52,6 +56,41 @@ export default function ContactDetail() {
   const [showEditContact, setShowEditContact] = useState(false);
   const [showAddShowing, setShowAddShowing] = useState(false);
   const [showCreateEvent, setShowCreateEvent] = useState(false);
+  const [showHandoff, setShowHandoff] = useState(false);
+  const [teamNotes, setTeamNotes] = useState([]);
+  const [showAddTeamNote, setShowAddTeamNote] = useState(false);
+  const [teamNoteText, setTeamNoteText] = useState('');
+  
+  const { isInTeam, team } = useTeam();
+
+  useEffect(() => {
+    if (isInTeam && team && contact) {
+      loadTeamNotes();
+    }
+  }, [isInTeam, team, contact?.id]);
+
+  const loadTeamNotes = async () => {
+    if (!team || !contact) return;
+    try {
+      const notes = await getTeamNotes(contact.id, team.id);
+      setTeamNotes(notes);
+    } catch (err) {
+      console.error('Error loading team notes:', err);
+    }
+  };
+
+  const handleAddTeamNote = async () => {
+    if (!teamNoteText.trim() || !team || !contact) return;
+    
+    try {
+      await addTeamNote(contact.id, team.id, teamNoteText.trim(), true);
+      setTeamNoteText('');
+      setShowAddTeamNote(false);
+      loadTeamNotes();
+    } catch (err) {
+      alert('Failed to add team note: ' + err.message);
+    }
+  };
   const [activityType, setActivityType] = useState('call');
   const [activityNote, setActivityNote] = useState('');
   
@@ -221,6 +260,12 @@ export default function ContactDetail() {
                   <CalendarDays size={18} />
                   Calendar Event
                 </button>
+                {isInTeam && (
+                  <button className="btn btn-secondary" onClick={() => setShowHandoff(true)}>
+                    <Users size={18} />
+                    Hand Off Lead
+                  </button>
+                )}
               </div>
             </div>
 
@@ -421,6 +466,15 @@ export default function ContactDetail() {
                     </div>
                   </div>
                 )}
+
+                {contact.commissionNotes && (
+                  <div className="info-section">
+                    <div className="info-label">Commission Notes</div>
+                    <div className="info-value" style={{ whiteSpace: 'pre-wrap' }}>
+                      {contact.commissionNotes}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
@@ -453,6 +507,85 @@ export default function ContactDetail() {
                         {format(new Date(contact.homeAnniversary), 'MMMM d, yyyy')}
                       </div>
                     </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Team Notes */}
+            {isInTeam && team && (
+              <div className="card animate-slide-up stagger-1" style={{ marginBottom: 'var(--spacing-lg)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--spacing-md)' }}>
+                  <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <MessageSquare size={18} style={{ color: 'var(--purple-400)' }} />
+                    Team Notes
+                  </h3>
+                  {!showAddTeamNote && (
+                    <button 
+                      className="btn btn-secondary btn-sm" 
+                      onClick={() => setShowAddTeamNote(true)}
+                    >
+                      <Plus size={16} />
+                      Add Note
+                    </button>
+                  )}
+                </div>
+
+                {showAddTeamNote && (
+                  <div style={{ marginBottom: 'var(--spacing-md)', padding: 'var(--spacing-md)', background: 'var(--bg-tertiary)', borderRadius: 'var(--radius-md)' }}>
+                    <textarea
+                      className="form-input"
+                      value={teamNoteText}
+                      onChange={(e) => setTeamNoteText(e.target.value)}
+                      placeholder="Add an internal team note..."
+                      rows={3}
+                      style={{ marginBottom: 'var(--spacing-sm)' }}
+                    />
+                    <div style={{ display: 'flex', gap: 'var(--spacing-sm)', justifyContent: 'flex-end' }}>
+                      <button 
+                        className="btn btn-secondary btn-sm" 
+                        onClick={() => {
+                          setShowAddTeamNote(false);
+                          setTeamNoteText('');
+                        }}
+                      >
+                        Cancel
+                      </button>
+                      <button 
+                        className="btn btn-primary btn-sm" 
+                        onClick={handleAddTeamNote}
+                        disabled={!teamNoteText.trim()}
+                      >
+                        Save
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {teamNotes.length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: 'var(--spacing-lg)', color: 'var(--text-muted)' }}>
+                    No team notes yet
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-md)' }}>
+                    {teamNotes.map(note => (
+                      <div 
+                        key={note.id}
+                        style={{
+                          padding: 'var(--spacing-md)',
+                          background: 'var(--bg-tertiary)',
+                          borderRadius: 'var(--radius-md)',
+                          border: '1px solid var(--border)'
+                        }}
+                      >
+                        <div style={{ fontSize: '0.875rem', color: 'var(--text-primary)', whiteSpace: 'pre-wrap', marginBottom: 'var(--spacing-xs)' }}>
+                          {note.note}
+                        </div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                          {formatDistanceToNow(new Date(note.created_at), { addSuffix: true })}
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 )}
               </div>
@@ -585,6 +718,17 @@ export default function ContactDetail() {
           onClose={() => setShowCreateEvent(false)}
           defaultContactId={contact.id}
           onEventCreated={() => setShowCreateEvent(false)}
+        />
+      )}
+
+      {showHandoff && contact && (
+        <HandoffModal
+          contact={contact}
+          onClose={() => setShowHandoff(false)}
+          onHandoffComplete={() => {
+            // Refresh contact data if needed
+            window.location.reload();
+          }}
         />
       )}
     </>
