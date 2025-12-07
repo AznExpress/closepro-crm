@@ -1,5 +1,5 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
-import { Home, Users, Bell, LogOut, Building2, TrendingUp, FileText } from 'lucide-react';
+import { Home, Users, Bell, LogOut, Building2, TrendingUp, FileText, Mail, CreditCard, Calendar as CalendarIcon } from 'lucide-react';
 import { useCRM } from '../store/CRMContext';
 import { useAuth } from '../store/AuthContext';
 
@@ -77,15 +77,40 @@ export default function Layout() {
           </NavLink>
 
           <NavLink 
+            to="/calendar" 
+            className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
+          >
+            <CalendarIcon size={20} className="nav-icon" />
+            Calendar
+          </NavLink>
+
+          <NavLink 
             to="/templates" 
             className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
           >
             <FileText size={20} className="nav-icon" />
             Templates
           </NavLink>
+
+          <NavLink 
+            to="/email-settings" 
+            className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
+          >
+            <Mail size={20} className="nav-icon" />
+            Email Sync
+          </NavLink>
         </nav>
         
         <div className="sidebar-footer">
+          <NavLink 
+            to="/subscription" 
+            className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
+            style={{ marginBottom: 'var(--spacing-sm)' }}
+          >
+            <CreditCard size={20} className="nav-icon" />
+            Subscription
+          </NavLink>
+          
           <div className="user-profile">
             <div className="avatar">{getUserInitials()}</div>
             <div className="user-info">

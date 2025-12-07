@@ -237,3 +237,205 @@ CREATE TRIGGER update_last_contact_on_showing
   FOR EACH ROW
   EXECUTE FUNCTION update_contact_last_contact();
 
+-- =====================
+-- EMAIL ACCOUNTS TABLE
+-- =====================
+CREATE TABLE email_accounts (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  
+  provider TEXT NOT NULL CHECK (provider IN ('gmail', 'outlook')),
+  email TEXT NOT NULL,
+  access_token TEXT NOT NULL,
+  refresh_token TEXT,
+  token_expires_at TIMESTAMPTZ,
+  
+  -- Sync settings
+  sync_enabled BOOLEAN DEFAULT TRUE,
+  last_sync_at TIMESTAMPTZ,
+  sync_folder TEXT DEFAULT 'inbox',
+  
+  -- Metadata
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  
+  UNIQUE(user_id, email)
+);
+
+-- Enable RLS
+ALTER TABLE email_accounts ENABLE ROW LEVEL SECURITY;
+
+-- Email accounts policies
+CREATE POLICY "Users can view own email accounts" ON email_accounts
+  FOR SELECT USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can insert own email accounts" ON email_accounts
+  FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can update own email accounts" ON email_accounts
+  FOR UPDATE USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can delete own email accounts" ON email_accounts
+  FOR DELETE USING (auth.uid() = user_id);
+
+-- Index
+CREATE INDEX idx_email_accounts_user_id ON email_accounts(user_id);
+
+-- Trigger for updated_at
+CREATE TRIGGER update_email_accounts_updated_at
+  BEFORE UPDATE ON email_accounts
+  FOR EACH ROW
+  EXECUTE FUNCTION update_updated_at_column();
+
+-- =====================
+-- SUBSCRIPTIONS TABLE
+-- =====================
+CREATE TABLE subscriptions (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL UNIQUE,
+  
+  -- Stripe data
+  stripe_customer_id TEXT,
+  stripe_subscription_id TEXT,
+  stripe_price_id TEXT,
+  
+  -- Subscription details
+  status TEXT NOT NULL CHECK (status IN ('active', 'canceled', 'past_due', 'trialing', 'incomplete', 'incomplete_expired')),
+  plan_name TEXT NOT NULL,
+  plan_price DECIMAL(10,2) NOT NULL,
+  plan_interval TEXT CHECK (plan_interval IN ('month', 'year')),
+  
+  -- Dates
+  current_period_start TIMESTAMPTZ,
+  current_period_end TIMESTAMPTZ,
+  cancel_at_period_end BOOLEAN DEFAULT FALSE,
+  canceled_at TIMESTAMPTZ,
+  
+  -- Metadata
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Enable RLS
+ALTER TABLE subscriptions ENABLE ROW LEVEL SECURITY;
+
+-- Subscriptions policies
+CREATE POLICY "Users can view own subscription" ON subscriptions
+  FOR SELECT USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can insert own subscription" ON subscriptions
+  FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can update own subscription" ON subscriptions
+  FOR UPDATE USING (auth.uid() = user_id);
+
+-- Index
+CREATE INDEX idx_subscriptions_user_id ON subscriptions(user_id);
+CREATE INDEX idx_subscriptions_stripe_customer_id ON subscriptions(stripe_customer_id);
+CREATE INDEX idx_subscriptions_stripe_subscription_id ON subscriptions(stripe_subscription_id);
+
+-- Trigger for updated_at
+CREATE TRIGGER update_subscriptions_updated_at
+  BEFORE UPDATE ON subscriptions
+  FOR EACH ROW
+  EXECUTE FUNCTION update_updated_at_column();
+
+-- =====================
+-- CALENDAR ACCOUNTS TABLE
+-- =====================
+CREATE TABLE calendar_accounts (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  
+  provider TEXT NOT NULL CHECK (provider IN ('google', 'outlook')),
+  email TEXT NOT NULL,
+  access_token TEXT NOT NULL,
+  refresh_token TEXT,
+  token_expires_at TIMESTAMPTZ,
+  calendar_id TEXT, -- Primary calendar ID
+  
+  sync_enabled BOOLEAN DEFAULT TRUE,
+  last_sync_at TIMESTAMPTZ,
+  
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  
+  UNIQUE(user_id, email)
+);
+
+-- =====================
+-- CALENDAR EVENTS TABLE
+-- =====================
+CREATE TABLE calendar_events (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  contact_id UUID REFERENCES contacts(id) ON DELETE SET NULL,
+  reminder_id UUID REFERENCES reminders(id) ON DELETE SET NULL,
+  
+  -- Event details
+  title TEXT NOT NULL,
+  description TEXT,
+  location TEXT,
+  start_time TIMESTAMPTZ NOT NULL,
+  end_time TIMESTAMPTZ NOT NULL,
+  all_day BOOLEAN DEFAULT FALSE,
+  
+  -- Calendar sync
+  calendar_account_id UUID REFERENCES calendar_accounts(id) ON DELETE SET NULL,
+  external_event_id TEXT, -- ID from Google/Outlook calendar
+  external_calendar_id TEXT,
+  
+  -- Metadata
+  event_type TEXT CHECK (event_type IN ('showing', 'meeting', 'call', 'other')) DEFAULT 'other',
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Enable RLS
+ALTER TABLE calendar_accounts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE calendar_events ENABLE ROW LEVEL SECURITY;
+
+-- Calendar accounts policies
+CREATE POLICY "Users can view own calendar accounts" ON calendar_accounts
+  FOR SELECT USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can insert own calendar accounts" ON calendar_accounts
+  FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can update own calendar accounts" ON calendar_accounts
+  FOR UPDATE USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can delete own calendar accounts" ON calendar_accounts
+  FOR DELETE USING (auth.uid() = user_id);
+
+-- Calendar events policies
+CREATE POLICY "Users can view own calendar events" ON calendar_events
+  FOR SELECT USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can insert own calendar events" ON calendar_events
+  FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can update own calendar events" ON calendar_events
+  FOR UPDATE USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can delete own calendar events" ON calendar_events
+  FOR DELETE USING (auth.uid() = user_id);
+
+-- Indexes
+CREATE INDEX idx_calendar_accounts_user_id ON calendar_accounts(user_id);
+CREATE INDEX idx_calendar_events_user_id ON calendar_events(user_id);
+CREATE INDEX idx_calendar_events_start_time ON calendar_events(user_id, start_time);
+CREATE INDEX idx_calendar_events_contact_id ON calendar_events(contact_id);
+CREATE INDEX idx_calendar_events_external_id ON calendar_events(external_event_id);
+
+-- Triggers
+CREATE TRIGGER update_calendar_accounts_updated_at
+  BEFORE UPDATE ON calendar_accounts
+  FOR EACH ROW
+  EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_calendar_events_updated_at
+  BEFORE UPDATE ON calendar_events
+  FOR EACH ROW
+  EXECUTE FUNCTION update_updated_at_column();
+

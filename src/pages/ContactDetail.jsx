@@ -23,12 +23,14 @@ import {
   Minus,
   Gift,
   DollarSign,
-  TrendingUp
+  TrendingUp,
+  CalendarDays
 } from 'lucide-react';
 import { useCRM, LEAD_SOURCES, DEAL_STAGES } from '../store/CRMContext';
 import { format, formatDistanceToNow, isPast, isToday } from 'date-fns';
 import AddReminderModal from '../components/AddReminderModal';
 import EditContactModal from '../components/EditContactModal';
+import CreateEventModal from '../components/CreateEventModal';
 
 export default function ContactDetail() {
   const { id } = useParams();
@@ -49,6 +51,7 @@ export default function ContactDetail() {
   const [showAddReminder, setShowAddReminder] = useState(false);
   const [showEditContact, setShowEditContact] = useState(false);
   const [showAddShowing, setShowAddShowing] = useState(false);
+  const [showCreateEvent, setShowCreateEvent] = useState(false);
   const [activityType, setActivityType] = useState('call');
   const [activityNote, setActivityNote] = useState('');
   
@@ -213,6 +216,10 @@ export default function ContactDetail() {
                 <button className="btn btn-secondary" onClick={() => setShowAddShowing(true)}>
                   <Home size={18} />
                   Log Showing
+                </button>
+                <button className="btn btn-secondary" onClick={() => setShowCreateEvent(true)}>
+                  <CalendarDays size={18} />
+                  Calendar Event
                 </button>
               </div>
             </div>
@@ -570,6 +577,14 @@ export default function ContactDetail() {
         <EditContactModal 
           contact={contact}
           onClose={() => setShowEditContact(false)} 
+        />
+      )}
+
+      {showCreateEvent && (
+        <CreateEventModal
+          onClose={() => setShowCreateEvent(false)}
+          defaultContactId={contact.id}
+          onEventCreated={() => setShowCreateEvent(false)}
         />
       )}
     </>

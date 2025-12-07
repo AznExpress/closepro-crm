@@ -10,11 +10,15 @@ import {
   ThermometerSun,
   Snowflake,
   MoreVertical,
-  Trash2
+  Trash2,
+  Download,
+  Upload
 } from 'lucide-react';
 import { useCRM } from '../store/CRMContext';
 import { formatDistanceToNow } from 'date-fns';
 import AddContactModal from '../components/AddContactModal';
+import CSVImportModal from '../components/CSVImportModal';
+import { exportContactsToCSV } from '../services/csvService';
 
 export default function Contacts() {
   const navigate = useNavigate();
@@ -30,6 +34,7 @@ export default function Contacts() {
   } = useCRM();
   
   const [showAddContact, setShowAddContact] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
   const [menuOpen, setMenuOpen] = useState(null);
 
   // Sync URL params with state
@@ -58,6 +63,18 @@ export default function Contacts() {
     setMenuOpen(null);
   };
 
+  const handleExport = () => {
+    try {
+      if (contacts.length === 0) {
+        alert('No contacts to export');
+        return;
+      }
+      exportContactsToCSV(contacts);
+    } catch (error) {
+      alert(`Export failed: ${error.message}`);
+    }
+  };
+
   const temperatureIcons = {
     hot: <Flame size={14} />,
     warm: <ThermometerSun size={14} />,
@@ -74,10 +91,20 @@ export default function Contacts() {
               {contacts.length} contacts • {filteredContacts.length} showing
             </p>
           </div>
-          <button className="btn btn-primary" onClick={() => setShowAddContact(true)}>
-            <Plus size={18} />
-            Add Contact
-          </button>
+          <div style={{ display: 'flex', gap: 'var(--spacing-sm)' }}>
+            <button className="btn btn-secondary" onClick={handleExport}>
+              <Download size={18} />
+              Export CSV
+            </button>
+            <button className="btn btn-secondary" onClick={() => setShowImportModal(true)}>
+              <Upload size={18} />
+              Import CSV
+            </button>
+            <button className="btn btn-primary" onClick={() => setShowAddContact(true)}>
+              <Plus size={18} />
+              Add Contact
+            </button>
+          </div>
         </div>
       </header>
 
@@ -239,6 +266,10 @@ export default function Contacts() {
 
       {showAddContact && (
         <AddContactModal onClose={() => setShowAddContact(false)} />
+      )}
+
+      {showImportModal && (
+        <CSVImportModal onClose={() => setShowImportModal(false)} />
       )}
     </>
   );

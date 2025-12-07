@@ -12,6 +12,10 @@ A focused, no-bloat CRM designed for real estate agents who want to close more d
 - **Quick Templates** - Copy-paste messages personalized for each client
 - **Important Dates** - Birthday and home anniversary tracking
 - **Lead Source Analytics** - Know where your best leads come from
+- **Email Sync** - Connect Gmail/Outlook to automatically log emails as activities
+- **Stripe Payments** - Subscription billing with multiple plan tiers
+- **CSV Import/Export** - Bulk import contacts or export for backup
+- **Calendar Integration** - Sync with Google Calendar and Outlook, schedule events
 
 ## Getting Started
 
@@ -66,6 +70,40 @@ The app runs in **demo mode** by default (without Supabase). In demo mode:
    ```bash
    npm run dev
    ```
+
+### Email Sync Setup (Optional)
+
+To enable Gmail/Outlook email sync:
+
+1. **Set up OAuth credentials** (see `EMAIL_SYNC_SETUP.md` for detailed instructions)
+2. **Add to `.env`**:
+   ```
+   VITE_GMAIL_CLIENT_ID=your-gmail-client-id
+   VITE_GMAIL_CLIENT_SECRET=your-gmail-secret
+   VITE_OUTLOOK_CLIENT_ID=your-outlook-client-id
+   VITE_OUTLOOK_CLIENT_SECRET=your-outlook-secret
+   ```
+3. **Connect accounts** in the app: Navigate to "Email Sync" in the sidebar
+
+**Note**: For production, consider using a backend proxy for OAuth (more secure). See `EMAIL_SYNC_SETUP.md` for details.
+
+### Stripe Payments Setup (Optional)
+
+To enable subscription payments:
+
+1. **Create Stripe account** at [stripe.com](https://stripe.com)
+2. **Create products and prices** in Stripe Dashboard
+3. **Set up backend API** (see `STRIPE_SETUP.md` for detailed instructions)
+4. **Add to `.env`**:
+   ```
+   VITE_STRIPE_PUBLISHABLE_KEY=pk_test_...
+   VITE_STRIPE_STARTER_PRICE_ID=price_...
+   VITE_STRIPE_PRO_PRICE_ID=price_...
+   VITE_STRIPE_TEAM_PRICE_ID=price_...
+   ```
+5. **Configure webhooks** for subscription updates
+
+**Note**: Stripe integration requires backend endpoints for security. See `STRIPE_SETUP.md` for complete setup guide including Supabase Edge Functions or Node.js backend options.
 
 ## Tech Stack
 

@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './store/AuthContext';
+import { SubscriptionProvider } from './store/SubscriptionContext';
 import { CRMProvider } from './store/CRMContext';
 import Layout from './components/Layout';
 import Dashboard from './pages/Dashboard';
@@ -10,6 +11,11 @@ import Pipeline from './pages/Pipeline';
 import Templates from './pages/Templates';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
+import EmailSettings from './pages/EmailSettings';
+import Pricing from './pages/Pricing';
+import Subscription from './pages/Subscription';
+import Calendar from './pages/Calendar';
+import CalendarSettings from './pages/CalendarSettings';
 import './App.css';
 
 // Protected route wrapper
@@ -82,6 +88,11 @@ function AppRoutes() {
         <Route path="reminders" element={<Reminders />} />
         <Route path="pipeline" element={<Pipeline />} />
         <Route path="templates" element={<Templates />} />
+        <Route path="email-settings" element={<EmailSettings />} />
+        <Route path="pricing" element={<Pricing />} />
+        <Route path="subscription" element={<Subscription />} />
+        <Route path="calendar" element={<Calendar />} />
+        <Route path="calendar-settings" element={<CalendarSettings />} />
       </Route>
 
       {/* Catch all */}
@@ -93,9 +104,11 @@ function AppRoutes() {
 function App() {
   return (
     <AuthProvider>
-      <BrowserRouter>
-        <AppRoutes />
-      </BrowserRouter>
+      <SubscriptionProvider>
+        <BrowserRouter>
+          <AppRoutes />
+        </BrowserRouter>
+      </SubscriptionProvider>
     </AuthProvider>
   );
 }
