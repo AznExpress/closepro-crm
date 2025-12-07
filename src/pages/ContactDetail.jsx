@@ -24,7 +24,10 @@ import {
   Gift,
   DollarSign,
   TrendingUp,
-  CalendarDays
+  CalendarDays,
+  Users,
+  MessageSquare,
+  X
 } from 'lucide-react';
 import { useCRM, LEAD_SOURCES, DEAL_STAGES } from '../store/CRMContext';
 import { format, formatDistanceToNow, isPast, isToday } from 'date-fns';
@@ -33,7 +36,6 @@ import EditContactModal from '../components/EditContactModal';
 import CreateEventModal from '../components/CreateEventModal';
 import HandoffModal from '../components/HandoffModal';
 import { useTeam } from '../store/TeamContext';
-import { Users, MessageSquare, Plus, X } from 'lucide-react';
 import { addTeamNote, getTeamNotes } from '../services/teamService';
 
 export default function ContactDetail() {
