@@ -123,7 +123,8 @@ ALTER TABLE reminders ENABLE ROW LEVEL SECURITY;
 ALTER TABLE templates ENABLE ROW LEVEL SECURITY;
 
 -- Contacts: Users can only see their own contacts
--- Note: Team visibility will be added later after team_members table is created
+-- Basic policy - will be updated later with team visibility
+DROP POLICY IF EXISTS "Users can view own contacts" ON contacts;
 CREATE POLICY "Users can view own contacts" ON contacts
   FOR SELECT USING (auth.uid() = user_id);
 
