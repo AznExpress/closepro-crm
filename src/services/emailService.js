@@ -40,9 +40,14 @@ export function getGmailAuthUrl(redirectUri) {
     throw new Error('Gmail Client ID not configured. Add VITE_GMAIL_CLIENT_ID to .env');
   }
 
+  // Normalize redirect URI (remove trailing slash) to ensure consistency
+  const normalizedRedirectUri = redirectUri.replace(/\/$/, '');
+
+  console.log('[Gmail OAuth] Generating auth URL with redirect URI:', normalizedRedirectUri);
+
   const params = new URLSearchParams({
     client_id: clientId,
-    redirect_uri: redirectUri,
+    redirect_uri: normalizedRedirectUri,
     response_type: 'code',
     scope: GMAIL_SCOPES.join(' '),
     access_type: 'offline',
@@ -110,6 +115,11 @@ export async function exchangeGmailCode(code, redirectUri) {
     throw new Error('Gmail credentials not configured');
   }
 
+  // Normalize redirect URI (remove trailing slash)
+  const normalizedRedirectUri = redirectUri.replace(/\/$/, '');
+
+  console.log('[Gmail OAuth] Exchanging code with redirect URI:', normalizedRedirectUri);
+
   const response = await fetch('https://oauth2.googleapis.com/token', {
     method: 'POST',
     headers: {
@@ -119,14 +129,39 @@ export async function exchangeGmailCode(code, redirectUri) {
       code,
       client_id: clientId,
       client_secret: clientSecret,
-      redirect_uri: redirectUri,
+      redirect_uri: normalizedRedirectUri,
       grant_type: 'authorization_code'
     })
   });
 
   if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.error_description || 'Failed to exchange code');
+    let errorMessage = 'Failed to exchange authorization code';
+    try {
+      const error = await response.json();
+      const errorDesc = error.error_description || error.error || 'Unknown error';
+      
+      // Provide helpful error messages for common issues
+      if (errorDesc.includes('redirect_uri_mismatch') || errorDesc.includes('redirect_uri')) {
+        errorMessage = `Redirect URI mismatch (400: redirect_uri_mismatch).\n\n` +
+          `Required redirect URI: ${normalizedRedirectUri}\n\n` +
+          `In Google Cloud Console:\n` +
+          `1. Go to APIs & Services → Credentials\n` +
+          `2. Click on your OAuth 2.0 Client ID\n` +
+          `3. Under "Authorized redirect URIs", add exactly: ${normalizedRedirectUri}\n` +
+          `4. Make sure there are no trailing slashes\n` +
+          `5. Click Save and wait 1-2 minutes`;
+      } else if (errorDesc.includes('invalid_grant') || errorDesc.includes('expired')) {
+        errorMessage = `Authorization code expired or invalid.\n\n` +
+          `Solution: Try connecting again. The code may have expired or been used already.`;
+      } else {
+        errorMessage = errorDesc;
+      }
+    } catch (e) {
+      const responseText = await response.text();
+      console.error('[Gmail OAuth] Raw error response:', responseText);
+      errorMessage = `HTTP ${response.status}: ${response.statusText}\n\nResponse: ${responseText.substring(0, 200)}`;
+    }
+    throw new Error(errorMessage);
   }
 
   return await response.json();

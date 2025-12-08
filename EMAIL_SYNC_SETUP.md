@@ -131,14 +131,27 @@ VITE_OUTLOOK_CLIENT_SECRET=your-outlook-secret
    - APIs & Services → OAuth consent screen
    - Should show "Testing" or "In production"
    - User type should be configured
+   - **If in "Testing" mode (most common for development):**
+     - Scroll down to "Test users" section
+     - Click "+ ADD USERS"
+     - Add your Gmail address (the one you'll use to connect)
+     - Add any other test user emails
+     - Click "ADD"
+     - **Important:** Only test users can authorize the app in Testing mode
+     - **Error 403: access_denied** means your email is not in the test users list
 
-3. **Verify OAuth Client:**
+3. **Verify OAuth Client (CRITICAL - Common Error Source):**
    - APIs & Services → Credentials
    - Find your OAuth 2.0 Client ID
    - Click on it to view details
-   - **Verify redirect URIs include:**
-     - `http://localhost:5173/email-settings` (for development)
-     - Your production URL (if deployed)
+   - **Under "Authorized redirect URIs", verify you have EXACTLY:**
+     - `http://localhost:5173/email-settings` (for development - **NO trailing slash!**)
+     - Your production URL (if deployed, e.g., `https://yourdomain.com/email-settings`)
+   - **Common mistakes:**
+     - ❌ `http://localhost:5173/email-settings/` (trailing slash - will fail)
+     - ❌ `http://localhost:5173/email-settings` (missing protocol - will fail)
+     - ✅ `http://localhost:5173/email-settings` (correct format)
+   - **The redirect URI must match EXACTLY** - case-sensitive, no trailing slashes, must include protocol
 
 4. **Check Gmail API:**
    - APIs & Services → Library
@@ -213,10 +226,15 @@ VITE_OUTLOOK_CLIENT_SECRET=your-outlook-secret
 
 1. **Click "Connect Gmail":**
    - Should redirect to Google sign-in
-   - If you see "redirect_uri_mismatch" error:
+   - **If you see "Error 403: access_denied":**
+     - Your app is in "Testing" mode and your email is not in the test users list
+     - Go to Google Cloud Console → OAuth consent screen → Test users
+     - Add your Gmail address to the test users list
+     - Wait 1-2 minutes, then try again
+   - **If you see "redirect_uri_mismatch" error:**
      - Check redirect URI in Google Cloud Console matches exactly
      - Must include protocol (`http://` or `https://`)
-     - Must match your current URL
+     - Must match your current URL (including the correct port number)
 
 2. **Authorize Access:**
    - Sign in with your Google account

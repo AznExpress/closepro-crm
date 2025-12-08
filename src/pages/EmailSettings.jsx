@@ -234,6 +234,8 @@ export default function EmailSettings() {
         ? new Date(Date.now() + tokenData.expires_in * 1000).toISOString()
         : null;
 
+      // Upsert email account (update if exists, insert if new)
+      // Uses user_id + provider as unique key (allows both Gmail and Outlook)
       const { error: dbError } = await supabase
         .from('email_accounts')
         .upsert({
@@ -245,7 +247,7 @@ export default function EmailSettings() {
           token_expires_at: expiresAt,
           sync_enabled: true
         }, {
-          onConflict: 'user_id,email'
+          onConflict: 'user_id,provider' // Matches UNIQUE(user_id, provider) constraint
         });
 
       if (dbError) {
@@ -295,6 +297,9 @@ export default function EmailSettings() {
 
     // Normalize redirect URI (remove trailing slash) to ensure consistency
     const redirectUri = `${window.location.origin}/email-settings`.replace(/\/$/, '');
+    
+    console.log(`[OAuth] Starting ${provider} connection with redirect URI:`, redirectUri);
+    console.log(`[OAuth] Make sure this EXACT URI is configured in your OAuth provider's console`);
     
     let authUrl;
     try {

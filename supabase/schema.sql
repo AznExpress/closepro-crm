@@ -288,10 +288,24 @@ CREATE TABLE IF NOT EXISTS email_accounts (
   
   -- Metadata
   created_at TIMESTAMPTZ DEFAULT NOW(),
-  updated_at TIMESTAMPTZ DEFAULT NOW(),
-  
-  UNIQUE(user_id, email)
+  updated_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- Drop old constraint if it exists (from previous schema version)
+ALTER TABLE email_accounts DROP CONSTRAINT IF EXISTS email_accounts_user_id_email_key;
+ALTER TABLE email_accounts DROP CONSTRAINT IF EXISTS email_accounts_email_key;
+
+-- Add new constraint: Allow one account per provider per user (can have both Gmail and Outlook)
+-- This allows users to connect both Gmail and Outlook simultaneously
+DO $$ 
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint 
+    WHERE conname = 'email_accounts_user_id_provider_key'
+  ) THEN
+    ALTER TABLE email_accounts ADD CONSTRAINT email_accounts_user_id_provider_key UNIQUE(user_id, provider);
+  END IF;
+END $$;
 
 -- Enable RLS
 ALTER TABLE email_accounts ENABLE ROW LEVEL SECURITY;
