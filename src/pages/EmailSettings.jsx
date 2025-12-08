@@ -481,20 +481,53 @@ export default function EmailSettings() {
               fontSize: '0.875rem',
               color: 'var(--text-muted)'
             }}>
-              <strong>Setup Required:</strong> Add OAuth credentials to your .env file:
-              <pre style={{ 
-                marginTop: 'var(--spacing-sm)', 
-                padding: 'var(--spacing-sm)', 
-                background: 'var(--bg-secondary)',
-                borderRadius: 'var(--radius-sm)',
-                fontSize: '0.75rem',
-                overflow: 'auto'
-              }}>
+              <strong>Setup Required:</strong> OAuth credentials are missing. 
+              {window.location.hostname !== 'localhost' && !window.location.hostname.includes('127.0.0.1') ? (
+                <div style={{ marginTop: 'var(--spacing-sm)' }}>
+                  <p>Add these environment variables in <strong>Vercel Dashboard</strong>:</p>
+                  <ol style={{ marginLeft: '1.5rem', marginTop: 'var(--spacing-xs)' }}>
+                    <li>Go to Vercel → Your Project → Settings → Environment Variables</li>
+                    <li>Add each variable below (set for <strong>Production</strong> environment)</li>
+                    <li>Redeploy your application</li>
+                  </ol>
+                  <pre style={{ 
+                    marginTop: 'var(--spacing-sm)', 
+                    padding: 'var(--spacing-sm)', 
+                    background: 'var(--bg-secondary)',
+                    borderRadius: 'var(--radius-sm)',
+                    fontSize: '0.75rem',
+                    overflow: 'auto'
+                  }}>
 {`VITE_GMAIL_CLIENT_ID=your-gmail-client-id
 VITE_GMAIL_CLIENT_SECRET=your-gmail-secret
 VITE_OUTLOOK_CLIENT_ID=your-outlook-client-id
 VITE_OUTLOOK_CLIENT_SECRET=your-outlook-secret`}
-              </pre>
+                  </pre>
+                  <p style={{ marginTop: 'var(--spacing-sm)', fontSize: '0.8rem' }}>
+                    <strong>Need help?</strong> See <a href="https://github.com/your-repo/blob/main/EMAIL_SYNC_SETUP.md" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--primary)', textDecoration: 'underline' }}>EMAIL_SYNC_SETUP.md</a> for detailed OAuth setup instructions.
+                  </p>
+                </div>
+              ) : (
+                <div style={{ marginTop: 'var(--spacing-sm)' }}>
+                  <p>Add these to your <code>.env</code> file:</p>
+                  <pre style={{ 
+                    marginTop: 'var(--spacing-sm)', 
+                    padding: 'var(--spacing-sm)', 
+                    background: 'var(--bg-secondary)',
+                    borderRadius: 'var(--radius-sm)',
+                    fontSize: '0.75rem',
+                    overflow: 'auto'
+                  }}>
+{`VITE_GMAIL_CLIENT_ID=your-gmail-client-id
+VITE_GMAIL_CLIENT_SECRET=your-gmail-secret
+VITE_OUTLOOK_CLIENT_ID=your-outlook-client-id
+VITE_OUTLOOK_CLIENT_SECRET=your-outlook-secret`}
+                  </pre>
+                  <p style={{ marginTop: 'var(--spacing-sm)', fontSize: '0.8rem' }}>
+                    <strong>Need help?</strong> See <code>EMAIL_SYNC_SETUP.md</code> for detailed OAuth setup instructions.
+                  </p>
+                </div>
+              )}
             </div>
           )}
         </div>
