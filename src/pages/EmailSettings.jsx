@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { 
   Mail, 
   Check, 
@@ -23,6 +24,7 @@ import { syncEmailAccount } from '../services/emailSync';
 import { formatDistanceToNow } from 'date-fns';
 
 export default function EmailSettings() {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const { contacts } = useCRM();
   const [emailAccounts, setEmailAccounts] = useState([]);
@@ -31,18 +33,57 @@ export default function EmailSettings() {
   const [error, setError] = useState('');
   const [syncResults, setSyncResults] = useState({});
 
+  // Debug: Log component mount and current URL
+  console.log('[EmailSettings] Component rendered. URL:', window.location.href, 'User:', !!user);
+
   useEffect(() => {
+    console.log('[EmailSettings] useEffect running. Current URL:', window.location.href);
     loadEmailAccounts();
     
     // Check for OAuth callback
     const urlParams = new URLSearchParams(window.location.search);
+    console.log('[EmailSettings] URL params:', Object.fromEntries(urlParams.entries()));
     const code = urlParams.get('code');
     const state = urlParams.get('state'); // Provider is passed in state
+    const error = urlParams.get('error');
+    const errorDescription = urlParams.get('error_description');
     
-    if (code && state && (state === 'gmail' || state === 'outlook')) {
-      handleOAuthCallback(code, state);
+    console.log('[OAuth] Checking for callback:', { code: !!code, state, error, hasUser: !!user });
+    
+    // Handle OAuth errors from provider
+    if (error) {
+      console.error('[OAuth] Provider error:', error, errorDescription);
+      setError(
+        errorDescription || error || 'OAuth authorization failed. Please try again.'
+      );
+      // Clean URL
+      window.history.replaceState({}, document.title, '/email-settings');
+      return;
     }
-  }, []);
+    
+    // Only process callback if we have both code and state
+    if (code && state && (state === 'gmail' || state === 'outlook')) {
+      console.log('[OAuth] Callback detected! Code:', code.substring(0, 10) + '...', 'State:', state);
+      
+      // CRITICAL: Exchange code immediately to avoid expiration
+      // Don't wait for user session - we'll handle that in the callback
+      const processCallback = async () => {
+        console.log('[OAuth] Starting callback processing immediately (code expires quickly)...');
+        
+        // Clean URL immediately to prevent re-processing
+        window.history.replaceState({}, document.title, '/email-settings');
+        
+        // Start token exchange immediately (this is time-sensitive)
+        console.log('[OAuth] Calling handleOAuthCallback immediately...');
+        handleOAuthCallback(code, state);
+      };
+      
+      // Process immediately, don't wait
+      processCallback();
+    } else if (code || state) {
+      console.warn('[OAuth] Incomplete callback:', { code: !!code, state, expectedState: state === 'gmail' || state === 'outlook' });
+    }
+  }, [user]);
 
   const loadEmailAccounts = async () => {
     if (!isSupabaseConfigured() || !user) {
@@ -71,19 +112,122 @@ export default function EmailSettings() {
     setError('');
 
     try {
-      const redirectUri = `${window.location.origin}/email-settings`;
+      // CRITICAL: Exchange the authorization code FIRST (it expires quickly, ~10 minutes)
+      // We'll get the user session after, or use stored user ID
+      const redirectUri = `${window.location.origin}/email-settings`.replace(/\/$/, '');
+      
+      console.log(`[OAuth] Processing ${provider} callback - exchanging code IMMEDIATELY...`);
+      console.log(`[OAuth] Redirect URI:`, redirectUri);
+      
+      // Exchange code immediately to avoid expiration
       let tokenData;
-
-      if (provider === 'gmail') {
-        tokenData = await exchangeGmailCode(code, redirectUri);
-      } else if (provider === 'outlook') {
-        tokenData = await exchangeOutlookCode(code, redirectUri);
-      } else {
-        throw new Error('Invalid provider');
+      
+      try {
+        if (provider === 'gmail') {
+          tokenData = await exchangeGmailCode(code, redirectUri);
+        } else if (provider === 'outlook') {
+          tokenData = await exchangeOutlookCode(code, redirectUri);
+        } else {
+          throw new Error('Invalid provider');
+        }
+        console.log('[OAuth] Successfully exchanged code for tokens');
+      } catch (exchangeError) {
+        console.error('[OAuth] Token exchange failed:', exchangeError);
+        // Re-throw with more context
+        throw new Error(
+          `Failed to exchange authorization code: ${exchangeError.message}\n\n` +
+          `Common causes:\n` +
+          `- Code expired (try connecting again)\n` +
+          `- Redirect URI mismatch (check Azure Portal)\n` +
+          `- Client secret incorrect\n` +
+          `- Network error`
+        );
       }
 
+      // Now get user session (we have tokens, so we can take our time)
+      let currentUser = user;
+      const storedUserId = sessionStorage.getItem('oauth_user_id');
+      const storedProvider = sessionStorage.getItem('oauth_provider');
+      const redirectTime = sessionStorage.getItem('oauth_redirect_time');
+      
+      // Check if this is a recent OAuth redirect (within last 5 minutes)
+      const isRecentRedirect = redirectTime && (Date.now() - parseInt(redirectTime)) < 5 * 60 * 1000;
+      
+      if (!currentUser && isSupabaseConfigured()) {
+        console.log('[OAuth] Getting user session...', { storedUserId, storedProvider, isRecentRedirect });
+        
+        // Try to get session (with shorter timeout since we already have tokens)
+        for (let attempt = 0; attempt < 3; attempt++) {
+          const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+          
+          if (session?.user) {
+            currentUser = session.user;
+            console.log('[OAuth] Session found on attempt', attempt + 1);
+            break;
+          }
+          
+          if (sessionError) {
+            console.error('[OAuth] Session error:', sessionError);
+          }
+          
+          // Wait before next attempt (shorter waits)
+          if (attempt < 2) {
+            await new Promise(resolve => setTimeout(resolve, 300));
+          }
+        }
+        
+        // If still no user, try to refresh the session
+        if (!currentUser) {
+          console.log('[OAuth] Attempting to refresh session...');
+          const { data: { session: refreshedSession }, error: refreshError } = await supabase.auth.refreshSession();
+          
+          if (refreshedSession?.user) {
+            currentUser = refreshedSession.user;
+            console.log('[OAuth] Session refreshed successfully');
+          } else if (refreshError) {
+            console.error('[OAuth] Session refresh failed:', refreshError);
+          }
+        }
+
+        // If we have a stored user ID from before redirect and session is still lost,
+        // try to restore using the stored ID (as a last resort)
+        if (!currentUser && storedUserId && isRecentRedirect && storedProvider === provider) {
+          console.log('[OAuth] Attempting to restore session using stored user ID...');
+          console.warn('[OAuth] Session lost during redirect. User ID was:', storedUserId);
+        }
+      }
+
+      // Clean up stored values after processing
+      if (storedUserId) {
+        sessionStorage.removeItem('oauth_user_id');
+        sessionStorage.removeItem('oauth_provider');
+        sessionStorage.removeItem('oauth_redirect_time');
+      }
+
+      if (!currentUser) {
+        const errorMsg = storedUserId 
+          ? 'Your session was lost during the OAuth redirect. This can happen if your browser clears cookies. Please sign in again to complete the connection.'
+          : 'You must be logged in to connect an email account. Please sign in and try again.';
+        setError(errorMsg);
+        console.error('[OAuth] Session lost. Stored user ID:', storedUserId);
+        // Redirect to login after a short delay
+        setTimeout(() => {
+          navigate('/login', { state: { from: { pathname: '/email-settings' } } });
+        }, 3000);
+        throw new Error(errorMsg);
+      }
+
+      console.log(`[OAuth] Current user:`, currentUser.id);
+
       // Get user email from provider
-      const userEmail = await getUserEmail(provider, tokenData.access_token);
+      let userEmail;
+      try {
+        userEmail = await getUserEmail(provider, tokenData.access_token);
+        console.log('[OAuth] Retrieved user email:', userEmail);
+      } catch (emailError) {
+        console.error('[OAuth] Failed to get user email:', emailError);
+        throw new Error(`Failed to retrieve email address: ${emailError.message}`);
+      }
 
       // Save to database
       const expiresAt = tokenData.expires_in 
@@ -93,7 +237,7 @@ export default function EmailSettings() {
       const { error: dbError } = await supabase
         .from('email_accounts')
         .upsert({
-          user_id: user.id,
+          user_id: currentUser.id,
           provider,
           email: userEmail,
           access_token: tokenData.access_token,
@@ -104,15 +248,19 @@ export default function EmailSettings() {
           onConflict: 'user_id,email'
         });
 
-      if (dbError) throw dbError;
+      if (dbError) {
+        console.error('[OAuth] Database error:', dbError);
+        throw new Error(`Failed to save account: ${dbError.message}`);
+      }
 
-      // Clean URL
-      window.history.replaceState({}, document.title, '/email-settings');
+      console.log('[OAuth] Successfully connected email account');
       
       await loadEmailAccounts();
     } catch (err) {
-      console.error('OAuth callback error:', err);
-      setError(err.message || 'Failed to connect email account');
+      console.error('[OAuth] Callback error:', err);
+      // Format error message for display
+      const errorMessage = err.message || 'Failed to connect email account';
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -134,15 +282,27 @@ export default function EmailSettings() {
     }
   };
 
-  const handleConnect = (provider) => {
-    const redirectUri = `${window.location.origin}/email-settings`;
+  const handleConnect = async (provider) => {
+    if (!user) {
+      setError('You must be logged in to connect an email account.');
+      return;
+    }
+
+    // Store user ID in sessionStorage before redirect to recover if session is lost
+    sessionStorage.setItem('oauth_user_id', user.id);
+    sessionStorage.setItem('oauth_provider', provider);
+    sessionStorage.setItem('oauth_redirect_time', Date.now().toString());
+
+    // Normalize redirect URI (remove trailing slash) to ensure consistency
+    const redirectUri = `${window.location.origin}/email-settings`.replace(/\/$/, '');
     
     let authUrl;
     try {
       if (provider === 'gmail') {
         authUrl = getGmailAuthUrl(redirectUri);
       } else if (provider === 'outlook') {
-        authUrl = getOutlookAuthUrl(redirectUri);
+        // getOutlookAuthUrl is now async (generates PKCE challenge)
+        authUrl = await getOutlookAuthUrl(redirectUri);
       } else {
         throw new Error('Invalid provider');
       }
@@ -151,9 +311,42 @@ export default function EmailSettings() {
       const url = new URL(authUrl);
       url.searchParams.set('state', provider);
       
+      // Verify code verifier is stored before redirecting
+      const verifierCheck = sessionStorage.getItem('oauth_code_verifier') || 
+                           localStorage.getItem('oauth_code_verifier') ||
+                           sessionStorage.getItem('outlook_code_verifier') ||
+                           localStorage.getItem('outlook_code_verifier');
+      
+      console.log('[OAuth] Pre-redirect check:', {
+        provider,
+        hasVerifier: !!verifierCheck,
+        verifierLength: verifierCheck?.length,
+        allStorageKeys: {
+          session: Object.keys(sessionStorage).filter(k => k.includes('oauth') || k.includes('code') || k.includes('verifier')),
+          local: Object.keys(localStorage).filter(k => k.includes('oauth') || k.includes('code') || k.includes('verifier'))
+        }
+      });
+      
+      if (!verifierCheck && provider === 'outlook') {
+        console.error('[OAuth] WARNING: Code verifier not found before redirect! This will fail.');
+        setError('Failed to prepare OAuth connection. Please refresh the page and try again.');
+        return;
+      }
+      
+      console.log('[OAuth] Redirecting to provider:', provider);
+      // Full redirect (popup approach had issues, using redirect with session recovery)
       window.location.href = url.toString();
     } catch (err) {
+      console.error('[OAuth] Error starting connection:', err);
       setError(err.message || `Failed to start ${provider} connection`);
+      // Clear stored values on error
+      sessionStorage.removeItem('oauth_user_id');
+      sessionStorage.removeItem('oauth_provider');
+      sessionStorage.removeItem('oauth_redirect_time');
+      sessionStorage.removeItem('oauth_code_verifier');
+      sessionStorage.removeItem('oauth_code_verifier_time');
+      localStorage.removeItem('oauth_code_verifier');
+      localStorage.removeItem('oauth_code_verifier_time');
     }
   };
 

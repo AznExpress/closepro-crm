@@ -115,8 +115,7 @@ export async function getPendingHandoffs() {
     .from('lead_handoffs')
     .select(`
       *,
-      contact:contacts(id, firstName, lastName, email, phone),
-      from_user:auth.users(id, email, raw_user_meta_data)
+      contact:contacts(id, first_name, last_name, email, phone)
     `)
     .eq('to_user_id', user.id)
     .eq('status', 'pending')
@@ -125,6 +124,34 @@ export async function getPendingHandoffs() {
   if (error) {
     console.error('Error fetching handoffs:', error);
     return [];
+  }
+
+  // Fetch user info for from_user_id using RPC
+  if (data && data.length > 0) {
+    const userIds = [...new Set(data.map(h => h.from_user_id).filter(Boolean))];
+    const userInfoMap = {};
+    
+    for (const userId of userIds) {
+      const { data: userInfo, error: userError } = await supabase.rpc('get_user_info', {
+        p_user_id: userId
+      });
+      if (!userError && userInfo && userInfo.length > 0) {
+        userInfoMap[userId] = userInfo[0];
+      }
+    }
+    
+    // Attach user info to handoffs and transform contact to camelCase
+    return data.map(handoff => ({
+      ...handoff,
+      contact: handoff.contact ? {
+        id: handoff.contact.id,
+        firstName: handoff.contact.first_name,
+        lastName: handoff.contact.last_name,
+        email: handoff.contact.email,
+        phone: handoff.contact.phone
+      } : null,
+      from_user: handoff.from_user_id ? userInfoMap[handoff.from_user_id] || { id: handoff.from_user_id } : null
+    }));
   }
 
   return data || [];
@@ -156,7 +183,7 @@ export async function getTeamActivity(teamId, limit = 50) {
     .from('activities')
     .select(`
       *,
-      contact:contacts(id, firstName, lastName)
+      contact:contacts(id, first_name, last_name)
     `)
     .in('user_id', userIds)
     .order('created_at', { ascending: false })
@@ -172,23 +199,33 @@ export async function getTeamActivity(teamId, limit = 50) {
     .from('lead_handoffs')
     .select(`
       *,
-      contact:contacts(id, firstName, lastName)
+      contact:contacts(id, first_name, last_name)
     `)
     .in('from_user_id', userIds)
     .or(`to_user_id.in.(${userIds.join(',')})`)
     .order('created_at', { ascending: false })
     .limit(20);
 
-  // Combine and sort by date
+  // Combine and sort by date, transforming contact data to camelCase
   const allActivity = [
     ...(activities || []).map(a => ({
       type: 'activity',
       ...a,
+      contact: a.contact ? {
+        id: a.contact.id,
+        firstName: a.contact.first_name,
+        lastName: a.contact.last_name
+      } : null,
       timestamp: a.created_at
     })),
     ...(handoffs || []).map(h => ({
       type: 'handoff',
       ...h,
+      contact: h.contact ? {
+        id: h.contact.id,
+        firstName: h.contact.first_name,
+        lastName: h.contact.last_name
+      } : null,
       timestamp: h.created_at
     }))
   ].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
@@ -236,7 +273,7 @@ export async function getTeamNotes(contactId, teamId) {
     .from('team_notes')
     .select(`
       *,
-      user:auth.users(id, email, raw_user_meta_data)
+      user_id
     `)
     .eq('contact_id', contactId)
     .eq('team_id', teamId)

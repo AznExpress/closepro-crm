@@ -77,6 +77,15 @@ function AppRoutes() {
         </PublicRoute>
       } />
 
+      {/* OAuth callback route - accessible even if session is lost */}
+      <Route path="/email-settings" element={
+        <TeamProvider>
+          <CRMProvider>
+            <EmailSettings />
+          </CRMProvider>
+        </TeamProvider>
+      } />
+
       {/* Protected routes */}
       <Route path="/" element={
         <ProtectedRoute>
@@ -93,7 +102,6 @@ function AppRoutes() {
         <Route path="reminders" element={<Reminders />} />
         <Route path="pipeline" element={<Pipeline />} />
         <Route path="templates" element={<Templates />} />
-        <Route path="email-settings" element={<EmailSettings />} />
         <Route path="pricing" element={<Pricing />} />
         <Route path="subscription" element={<Subscription />} />
         <Route path="calendar" element={<Calendar />} />

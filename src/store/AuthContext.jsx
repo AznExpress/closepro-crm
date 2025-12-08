@@ -65,12 +65,35 @@ export function AuthProvider({ children }) {
       return { data: { user: DEMO_USER }, error: null };
     }
 
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password
-    });
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      });
 
-    return { data, error };
+      if (error) {
+        // Provide more helpful error messages
+        if (error.message.includes('fetch') || error.message.includes('network')) {
+          return { 
+            data: null, 
+            error: { 
+              message: 'Network error: Check your Supabase URL and internet connection. Verify your VITE_SUPABASE_URL in .env file.' 
+            } 
+          };
+        }
+      }
+
+      return { data, error };
+    } catch (err) {
+      // Catch any unexpected errors
+      console.error('Sign in error:', err);
+      return { 
+        data: null, 
+        error: { 
+          message: err.message || 'Failed to sign in. Check your Supabase configuration in .env file.' 
+        } 
+      };
+    }
   };
 
   const signOut = async () => {

@@ -1,7 +1,8 @@
 // Stripe payment service
 import { loadStripe } from '@stripe/stripe-js';
 
-const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
+const stripeKey = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY;
+const stripePromise = stripeKey ? loadStripe(stripeKey) : null;
 
 // Pricing plans
 export const PLANS = [
@@ -65,8 +66,8 @@ export const PLANS = [
 
 // Initialize Stripe
 export async function getStripe() {
-  if (!import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY) {
-    throw new Error('Stripe publishable key not configured');
+  if (!stripeKey || !stripePromise) {
+    throw new Error('Stripe publishable key not configured. Add VITE_STRIPE_PUBLISHABLE_KEY to .env');
   }
   return await stripePromise;
 }

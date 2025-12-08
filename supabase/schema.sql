@@ -575,11 +575,26 @@ DROP POLICY IF EXISTS "Team owners can update teams" ON teams;
 CREATE POLICY "Team owners can update teams" ON teams
   FOR UPDATE USING (auth.uid() = owner_id);
 
+-- Helper function to check team membership (avoids RLS recursion)
+CREATE OR REPLACE FUNCTION is_team_member(p_user_id UUID, p_team_id UUID)
+RETURNS BOOLEAN
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+BEGIN
+  RETURN EXISTS (
+    SELECT 1 FROM team_members
+    WHERE user_id = p_user_id AND team_id = p_team_id
+  );
+END;
+$$;
+
 -- Team members policies
 DROP POLICY IF EXISTS "Users can view team members of their teams" ON team_members;
 CREATE POLICY "Users can view team members of their teams" ON team_members
   FOR SELECT USING (
-    team_id IN (SELECT team_id FROM team_members WHERE user_id = auth.uid())
+    user_id = auth.uid() OR
+    is_team_member(auth.uid(), team_id)
   );
 
 DROP POLICY IF EXISTS "Team owners can add members" ON team_members;
@@ -712,6 +727,27 @@ BEGIN
   FROM team_members tm
   LEFT JOIN auth.users au ON tm.user_id = au.id
   WHERE tm.team_id = p_team_id;
+END;
+$$;
+
+-- Function to get user info for handoffs
+CREATE OR REPLACE FUNCTION get_user_info(p_user_id UUID)
+RETURNS TABLE (
+  id UUID,
+  email TEXT,
+  full_name TEXT
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+BEGIN
+  RETURN QUERY
+  SELECT 
+    au.id,
+    au.email,
+    COALESCE(au.raw_user_meta_data->>'full_name', '') as full_name
+  FROM auth.users au
+  WHERE au.id = p_user_id;
 END;
 $$;
 
