@@ -1,5 +1,12 @@
 -- ClosePro CRM Database Schema
 -- Run this in your Supabase SQL Editor
+--
+-- NOTE: This schema is idempotent - you can run it multiple times safely.
+-- If you get errors about policies already existing, you can either:
+-- 1. Ignore those errors (policies will remain as-is)
+-- 2. Or drop policies first using: DROP POLICY IF EXISTS "policy_name" ON table_name;
+--
+-- Tables, indexes, triggers, and functions are all idempotent.
 
 -- Enable UUID extension
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
@@ -7,7 +14,7 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 -- =====================
 -- CONTACTS TABLE
 -- =====================
-CREATE TABLE contacts (
+CREATE TABLE IF NOT EXISTS contacts (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
   
@@ -43,7 +50,7 @@ CREATE TABLE contacts (
 -- =====================
 -- ACTIVITIES TABLE
 -- =====================
-CREATE TABLE activities (
+CREATE TABLE IF NOT EXISTS activities (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
   contact_id UUID REFERENCES contacts(id) ON DELETE CASCADE NOT NULL,
@@ -57,7 +64,7 @@ CREATE TABLE activities (
 -- =====================
 -- SHOWINGS TABLE
 -- =====================
-CREATE TABLE showings (
+CREATE TABLE IF NOT EXISTS showings (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
   contact_id UUID REFERENCES contacts(id) ON DELETE CASCADE NOT NULL,
@@ -73,7 +80,7 @@ CREATE TABLE showings (
 -- =====================
 -- REMINDERS TABLE
 -- =====================
-CREATE TABLE reminders (
+CREATE TABLE IF NOT EXISTS reminders (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
   contact_id UUID REFERENCES contacts(id) ON DELETE SET NULL,
@@ -91,7 +98,7 @@ CREATE TABLE reminders (
 -- =====================
 -- TEMPLATES TABLE
 -- =====================
-CREATE TABLE templates (
+CREATE TABLE IF NOT EXISTS templates (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
   
@@ -195,14 +202,14 @@ CREATE POLICY "Users can delete own templates" ON templates
 -- =====================
 -- INDEXES
 -- =====================
-CREATE INDEX idx_contacts_user_id ON contacts(user_id);
-CREATE INDEX idx_contacts_temperature ON contacts(user_id, temperature);
-CREATE INDEX idx_contacts_deal_stage ON contacts(user_id, deal_stage);
-CREATE INDEX idx_activities_contact_id ON activities(contact_id);
-CREATE INDEX idx_showings_contact_id ON showings(contact_id);
-CREATE INDEX idx_reminders_user_id ON reminders(user_id);
-CREATE INDEX idx_reminders_due_date ON reminders(user_id, due_date) WHERE NOT completed;
-CREATE INDEX idx_templates_user_id ON templates(user_id);
+CREATE INDEX IF NOT EXISTS idx_contacts_user_id ON contacts(user_id);
+CREATE INDEX IF NOT EXISTS idx_contacts_temperature ON contacts(user_id, temperature);
+CREATE INDEX IF NOT EXISTS idx_contacts_deal_stage ON contacts(user_id, deal_stage);
+CREATE INDEX IF NOT EXISTS idx_activities_contact_id ON activities(contact_id);
+CREATE INDEX IF NOT EXISTS idx_showings_contact_id ON showings(contact_id);
+CREATE INDEX IF NOT EXISTS idx_reminders_user_id ON reminders(user_id);
+CREATE INDEX IF NOT EXISTS idx_reminders_due_date ON reminders(user_id, due_date) WHERE NOT completed;
+CREATE INDEX IF NOT EXISTS idx_templates_user_id ON templates(user_id);
 
 -- =====================
 -- FUNCTIONS
@@ -218,12 +225,14 @@ END;
 $$ language 'plpgsql';
 
 -- Trigger for contacts
+DROP TRIGGER IF EXISTS update_contacts_updated_at ON contacts;
 CREATE TRIGGER update_contacts_updated_at
   BEFORE UPDATE ON contacts
   FOR EACH ROW
   EXECUTE FUNCTION update_updated_at_column();
 
 -- Trigger for templates
+DROP TRIGGER IF EXISTS update_templates_updated_at ON templates;
 CREATE TRIGGER update_templates_updated_at
   BEFORE UPDATE ON templates
   FOR EACH ROW
@@ -241,12 +250,14 @@ END;
 $$ language 'plpgsql';
 
 -- Trigger for activities
+DROP TRIGGER IF EXISTS update_last_contact_on_activity ON activities;
 CREATE TRIGGER update_last_contact_on_activity
   AFTER INSERT ON activities
   FOR EACH ROW
   EXECUTE FUNCTION update_contact_last_contact();
 
 -- Trigger for showings
+DROP TRIGGER IF EXISTS update_last_contact_on_showing ON showings;
 CREATE TRIGGER update_last_contact_on_showing
   AFTER INSERT ON showings
   FOR EACH ROW
@@ -255,7 +266,7 @@ CREATE TRIGGER update_last_contact_on_showing
 -- =====================
 -- EMAIL ACCOUNTS TABLE
 -- =====================
-CREATE TABLE email_accounts (
+CREATE TABLE IF NOT EXISTS email_accounts (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
   
@@ -294,9 +305,10 @@ CREATE POLICY "Users can delete own email accounts" ON email_accounts
   FOR DELETE USING (auth.uid() = user_id);
 
 -- Index
-CREATE INDEX idx_email_accounts_user_id ON email_accounts(user_id);
+CREATE INDEX IF NOT EXISTS idx_email_accounts_user_id ON email_accounts(user_id);
 
 -- Trigger for updated_at
+DROP TRIGGER IF EXISTS update_email_accounts_updated_at ON email_accounts;
 CREATE TRIGGER update_email_accounts_updated_at
   BEFORE UPDATE ON email_accounts
   FOR EACH ROW
@@ -305,7 +317,7 @@ CREATE TRIGGER update_email_accounts_updated_at
 -- =====================
 -- SUBSCRIPTIONS TABLE
 -- =====================
-CREATE TABLE subscriptions (
+CREATE TABLE IF NOT EXISTS subscriptions (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL UNIQUE,
   
@@ -345,11 +357,12 @@ CREATE POLICY "Users can update own subscription" ON subscriptions
   FOR UPDATE USING (auth.uid() = user_id);
 
 -- Index
-CREATE INDEX idx_subscriptions_user_id ON subscriptions(user_id);
-CREATE INDEX idx_subscriptions_stripe_customer_id ON subscriptions(stripe_customer_id);
-CREATE INDEX idx_subscriptions_stripe_subscription_id ON subscriptions(stripe_subscription_id);
+CREATE INDEX IF NOT EXISTS idx_subscriptions_user_id ON subscriptions(user_id);
+CREATE INDEX IF NOT EXISTS idx_subscriptions_stripe_customer_id ON subscriptions(stripe_customer_id);
+CREATE INDEX IF NOT EXISTS idx_subscriptions_stripe_subscription_id ON subscriptions(stripe_subscription_id);
 
 -- Trigger for updated_at
+DROP TRIGGER IF EXISTS update_subscriptions_updated_at ON subscriptions;
 CREATE TRIGGER update_subscriptions_updated_at
   BEFORE UPDATE ON subscriptions
   FOR EACH ROW
@@ -358,7 +371,7 @@ CREATE TRIGGER update_subscriptions_updated_at
 -- =====================
 -- CALENDAR ACCOUNTS TABLE
 -- =====================
-CREATE TABLE calendar_accounts (
+CREATE TABLE IF NOT EXISTS calendar_accounts (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
   
@@ -381,7 +394,7 @@ CREATE TABLE calendar_accounts (
 -- =====================
 -- CALENDAR EVENTS TABLE
 -- =====================
-CREATE TABLE calendar_events (
+CREATE TABLE IF NOT EXISTS calendar_events (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
   contact_id UUID REFERENCES contacts(id) ON DELETE SET NULL,
@@ -437,18 +450,20 @@ CREATE POLICY "Users can delete own calendar events" ON calendar_events
   FOR DELETE USING (auth.uid() = user_id);
 
 -- Indexes
-CREATE INDEX idx_calendar_accounts_user_id ON calendar_accounts(user_id);
-CREATE INDEX idx_calendar_events_user_id ON calendar_events(user_id);
-CREATE INDEX idx_calendar_events_start_time ON calendar_events(user_id, start_time);
-CREATE INDEX idx_calendar_events_contact_id ON calendar_events(contact_id);
-CREATE INDEX idx_calendar_events_external_id ON calendar_events(external_event_id);
+CREATE INDEX IF NOT EXISTS idx_calendar_accounts_user_id ON calendar_accounts(user_id);
+CREATE INDEX IF NOT EXISTS idx_calendar_events_user_id ON calendar_events(user_id);
+CREATE INDEX IF NOT EXISTS idx_calendar_events_start_time ON calendar_events(user_id, start_time);
+CREATE INDEX IF NOT EXISTS idx_calendar_events_contact_id ON calendar_events(contact_id);
+CREATE INDEX IF NOT EXISTS idx_calendar_events_external_id ON calendar_events(external_event_id);
 
 -- Triggers
+DROP TRIGGER IF EXISTS update_calendar_accounts_updated_at ON calendar_accounts;
 CREATE TRIGGER update_calendar_accounts_updated_at
   BEFORE UPDATE ON calendar_accounts
   FOR EACH ROW
   EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_calendar_events_updated_at ON calendar_events;
 CREATE TRIGGER update_calendar_events_updated_at
   BEFORE UPDATE ON calendar_events
   FOR EACH ROW
@@ -457,7 +472,7 @@ CREATE TRIGGER update_calendar_events_updated_at
 -- =====================
 -- TEAMS TABLE
 -- =====================
-CREATE TABLE teams (
+CREATE TABLE IF NOT EXISTS teams (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   name TEXT NOT NULL,
   owner_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
@@ -472,7 +487,7 @@ CREATE TABLE teams (
 -- =====================
 -- TEAM MEMBERS TABLE
 -- =====================
-CREATE TABLE team_members (
+CREATE TABLE IF NOT EXISTS team_members (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   team_id UUID REFERENCES teams(id) ON DELETE CASCADE NOT NULL,
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
@@ -487,7 +502,7 @@ CREATE TABLE team_members (
 -- =====================
 -- LEAD HANDOFFS TABLE
 -- =====================
-CREATE TABLE lead_handoffs (
+CREATE TABLE IF NOT EXISTS lead_handoffs (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   contact_id UUID REFERENCES contacts(id) ON DELETE CASCADE NOT NULL,
   from_user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
@@ -505,7 +520,7 @@ CREATE TABLE lead_handoffs (
 -- =====================
 -- TEAM NOTES TABLE
 -- =====================
-CREATE TABLE team_notes (
+CREATE TABLE IF NOT EXISTS team_notes (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   contact_id UUID REFERENCES contacts(id) ON DELETE CASCADE NOT NULL,
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
@@ -590,19 +605,21 @@ CREATE POLICY "Users can delete own team notes" ON team_notes
   FOR DELETE USING (auth.uid() = user_id);
 
 -- Indexes
-CREATE INDEX idx_team_members_team_id ON team_members(team_id);
-CREATE INDEX idx_team_members_user_id ON team_members(user_id);
-CREATE INDEX idx_lead_handoffs_contact_id ON lead_handoffs(contact_id);
-CREATE INDEX idx_lead_handoffs_to_user ON lead_handoffs(to_user_id, status);
-CREATE INDEX idx_team_notes_contact_id ON team_notes(contact_id);
-CREATE INDEX idx_team_notes_team_id ON team_notes(team_id);
+CREATE INDEX IF NOT EXISTS idx_team_members_team_id ON team_members(team_id);
+CREATE INDEX IF NOT EXISTS idx_team_members_user_id ON team_members(user_id);
+CREATE INDEX IF NOT EXISTS idx_lead_handoffs_contact_id ON lead_handoffs(contact_id);
+CREATE INDEX IF NOT EXISTS idx_lead_handoffs_to_user ON lead_handoffs(to_user_id, status);
+CREATE INDEX IF NOT EXISTS idx_team_notes_contact_id ON team_notes(contact_id);
+CREATE INDEX IF NOT EXISTS idx_team_notes_team_id ON team_notes(team_id);
 
 -- Triggers
+DROP TRIGGER IF EXISTS update_teams_updated_at ON teams;
 CREATE TRIGGER update_teams_updated_at
   BEFORE UPDATE ON teams
   FOR EACH ROW
   EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_team_notes_updated_at ON team_notes;
 CREATE TRIGGER update_team_notes_updated_at
   BEFORE UPDATE ON team_notes
   FOR EACH ROW
