@@ -123,23 +123,9 @@ ALTER TABLE reminders ENABLE ROW LEVEL SECURITY;
 ALTER TABLE templates ENABLE ROW LEVEL SECURITY;
 
 -- Contacts: Users can only see their own contacts
+-- Note: Team visibility will be added later after team_members table is created
 CREATE POLICY "Users can view own contacts" ON contacts
-  FOR SELECT USING (
-    auth.uid() = user_id
-    OR (
-      -- Allow viewing team member contacts if user is in team and opted in
-      EXISTS (
-        SELECT 1 FROM team_members tm
-        WHERE tm.user_id = auth.uid()
-        AND tm.show_team_deals = true
-        AND EXISTS (
-          SELECT 1 FROM team_members tm2
-          WHERE tm2.team_id = tm.team_id
-          AND tm2.user_id = contacts.user_id
-        )
-      )
-    )
-  );
+  FOR SELECT USING (auth.uid() = user_id);
 
 CREATE POLICY "Users can insert own contacts" ON contacts
   FOR INSERT WITH CHECK (auth.uid() = user_id);
@@ -568,6 +554,26 @@ CREATE POLICY "Users can update own team member settings" ON team_members
 
 CREATE POLICY "Users can leave teams" ON team_members
   FOR DELETE USING (auth.uid() = user_id);
+
+-- Update contacts policy to include team visibility (now that team_members exists)
+DROP POLICY IF EXISTS "Users can view own contacts" ON contacts;
+CREATE POLICY "Users can view own contacts" ON contacts
+  FOR SELECT USING (
+    auth.uid() = user_id
+    OR (
+      -- Allow viewing team member contacts if user is in team and opted in
+      EXISTS (
+        SELECT 1 FROM team_members tm
+        WHERE tm.user_id = auth.uid()
+        AND tm.show_team_deals = true
+        AND EXISTS (
+          SELECT 1 FROM team_members tm2
+          WHERE tm2.team_id = tm.team_id
+          AND tm2.user_id = contacts.user_id
+        )
+      )
+    )
+  );
 
 -- Lead handoffs policies
 CREATE POLICY "Users can view handoffs for their contacts or assigned to them" ON lead_handoffs
