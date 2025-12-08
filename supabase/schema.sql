@@ -688,7 +688,7 @@ ALTER TABLE templates ADD COLUMN IF NOT EXISTS team_id UUID REFERENCES teams(id)
 
 -- Function to get team members with emails
 -- Note: This requires the function to run with SECURITY DEFINER to access auth.users
-CREATE OR REPLACE FUNCTION get_team_members_with_emails(team_id UUID)
+CREATE OR REPLACE FUNCTION get_team_members_with_emails(p_team_id UUID)
 RETURNS TABLE (
   id UUID,
   user_id UUID,
@@ -711,7 +711,7 @@ BEGIN
     COALESCE(au.email, 'Unknown') as email
   FROM team_members tm
   LEFT JOIN auth.users au ON tm.user_id = au.id
-  WHERE tm.team_id = get_team_members_with_emails.team_id;
+  WHERE tm.team_id = p_team_id;
 END;
 $$;
 
