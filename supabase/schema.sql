@@ -128,61 +128,79 @@ DROP POLICY IF EXISTS "Users can view own contacts" ON contacts;
 CREATE POLICY "Users can view own contacts" ON contacts
   FOR SELECT USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can insert own contacts" ON contacts;
 CREATE POLICY "Users can insert own contacts" ON contacts
   FOR INSERT WITH CHECK (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can update own contacts" ON contacts;
 CREATE POLICY "Users can update own contacts" ON contacts
   FOR UPDATE USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can delete own contacts" ON contacts;
 CREATE POLICY "Users can delete own contacts" ON contacts
   FOR DELETE USING (auth.uid() = user_id);
 
 -- Activities: Users can only see their own activities
+DROP POLICY IF EXISTS "Users can view own activities" ON activities;
 CREATE POLICY "Users can view own activities" ON activities
   FOR SELECT USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can insert own activities" ON activities;
 CREATE POLICY "Users can insert own activities" ON activities
   FOR INSERT WITH CHECK (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can delete own activities" ON activities;
 CREATE POLICY "Users can delete own activities" ON activities
   FOR DELETE USING (auth.uid() = user_id);
 
 -- Showings: Users can only see their own showings
+DROP POLICY IF EXISTS "Users can view own showings" ON showings;
 CREATE POLICY "Users can view own showings" ON showings
   FOR SELECT USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can insert own showings" ON showings;
 CREATE POLICY "Users can insert own showings" ON showings
   FOR INSERT WITH CHECK (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can update own showings" ON showings;
 CREATE POLICY "Users can update own showings" ON showings
   FOR UPDATE USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can delete own showings" ON showings;
 CREATE POLICY "Users can delete own showings" ON showings
   FOR DELETE USING (auth.uid() = user_id);
 
 -- Reminders: Users can only see their own reminders
+DROP POLICY IF EXISTS "Users can view own reminders" ON reminders;
 CREATE POLICY "Users can view own reminders" ON reminders
   FOR SELECT USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can insert own reminders" ON reminders;
 CREATE POLICY "Users can insert own reminders" ON reminders
   FOR INSERT WITH CHECK (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can update own reminders" ON reminders;
 CREATE POLICY "Users can update own reminders" ON reminders
   FOR UPDATE USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can delete own reminders" ON reminders;
 CREATE POLICY "Users can delete own reminders" ON reminders
   FOR DELETE USING (auth.uid() = user_id);
 
 -- Templates: Users can only see their own templates
+DROP POLICY IF EXISTS "Users can view own templates" ON templates;
 CREATE POLICY "Users can view own templates" ON templates
   FOR SELECT USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can insert own templates" ON templates;
 CREATE POLICY "Users can insert own templates" ON templates
   FOR INSERT WITH CHECK (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can update own templates" ON templates;
 CREATE POLICY "Users can update own templates" ON templates
   FOR UPDATE USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can delete own templates" ON templates;
 CREATE POLICY "Users can delete own templates" ON templates
   FOR DELETE USING (auth.uid() = user_id);
 
@@ -279,15 +297,19 @@ CREATE TABLE IF NOT EXISTS email_accounts (
 ALTER TABLE email_accounts ENABLE ROW LEVEL SECURITY;
 
 -- Email accounts policies
+DROP POLICY IF EXISTS "Users can view own email accounts" ON email_accounts;
 CREATE POLICY "Users can view own email accounts" ON email_accounts
   FOR SELECT USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can insert own email accounts" ON email_accounts;
 CREATE POLICY "Users can insert own email accounts" ON email_accounts
   FOR INSERT WITH CHECK (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can update own email accounts" ON email_accounts;
 CREATE POLICY "Users can update own email accounts" ON email_accounts
   FOR UPDATE USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can delete own email accounts" ON email_accounts;
 CREATE POLICY "Users can delete own email accounts" ON email_accounts
   FOR DELETE USING (auth.uid() = user_id);
 
@@ -334,12 +356,15 @@ CREATE TABLE IF NOT EXISTS subscriptions (
 ALTER TABLE subscriptions ENABLE ROW LEVEL SECURITY;
 
 -- Subscriptions policies
+DROP POLICY IF EXISTS "Users can view own subscription" ON subscriptions;
 CREATE POLICY "Users can view own subscription" ON subscriptions
   FOR SELECT USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can insert own subscription" ON subscriptions;
 CREATE POLICY "Users can insert own subscription" ON subscriptions
   FOR INSERT WITH CHECK (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can update own subscription" ON subscriptions;
 CREATE POLICY "Users can update own subscription" ON subscriptions
   FOR UPDATE USING (auth.uid() = user_id);
 
@@ -411,28 +436,36 @@ ALTER TABLE calendar_accounts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE calendar_events ENABLE ROW LEVEL SECURITY;
 
 -- Calendar accounts policies
+DROP POLICY IF EXISTS "Users can view own calendar accounts" ON calendar_accounts;
 CREATE POLICY "Users can view own calendar accounts" ON calendar_accounts
   FOR SELECT USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can insert own calendar accounts" ON calendar_accounts;
 CREATE POLICY "Users can insert own calendar accounts" ON calendar_accounts
   FOR INSERT WITH CHECK (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can update own calendar accounts" ON calendar_accounts;
 CREATE POLICY "Users can update own calendar accounts" ON calendar_accounts
   FOR UPDATE USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can delete own calendar accounts" ON calendar_accounts;
 CREATE POLICY "Users can delete own calendar accounts" ON calendar_accounts
   FOR DELETE USING (auth.uid() = user_id);
 
 -- Calendar events policies
+DROP POLICY IF EXISTS "Users can view own calendar events" ON calendar_events;
 CREATE POLICY "Users can view own calendar events" ON calendar_events
   FOR SELECT USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can insert own calendar events" ON calendar_events;
 CREATE POLICY "Users can insert own calendar events" ON calendar_events
   FOR INSERT WITH CHECK (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can update own calendar events" ON calendar_events;
 CREATE POLICY "Users can update own calendar events" ON calendar_events
   FOR UPDATE USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can delete own calendar events" ON calendar_events;
 CREATE POLICY "Users can delete own calendar events" ON calendar_events
   FOR DELETE USING (auth.uid() = user_id);
 
@@ -527,32 +560,39 @@ ALTER TABLE lead_handoffs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE team_notes ENABLE ROW LEVEL SECURITY;
 
 -- Teams policies
+DROP POLICY IF EXISTS "Users can view teams they belong to" ON teams;
 CREATE POLICY "Users can view teams they belong to" ON teams
   FOR SELECT USING (
     id IN (SELECT team_id FROM team_members WHERE user_id = auth.uid())
     OR owner_id = auth.uid()
   );
 
+DROP POLICY IF EXISTS "Users can create teams" ON teams;
 CREATE POLICY "Users can create teams" ON teams
   FOR INSERT WITH CHECK (auth.uid() = owner_id);
 
+DROP POLICY IF EXISTS "Team owners can update teams" ON teams;
 CREATE POLICY "Team owners can update teams" ON teams
   FOR UPDATE USING (auth.uid() = owner_id);
 
 -- Team members policies
+DROP POLICY IF EXISTS "Users can view team members of their teams" ON team_members;
 CREATE POLICY "Users can view team members of their teams" ON team_members
   FOR SELECT USING (
     team_id IN (SELECT team_id FROM team_members WHERE user_id = auth.uid())
   );
 
+DROP POLICY IF EXISTS "Team owners can add members" ON team_members;
 CREATE POLICY "Team owners can add members" ON team_members
   FOR INSERT WITH CHECK (
     team_id IN (SELECT id FROM teams WHERE owner_id = auth.uid())
   );
 
+DROP POLICY IF EXISTS "Users can update own team member settings" ON team_members;
 CREATE POLICY "Users can update own team member settings" ON team_members
   FOR UPDATE USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can leave teams" ON team_members;
 CREATE POLICY "Users can leave teams" ON team_members
   FOR DELETE USING (auth.uid() = user_id);
 
@@ -577,6 +617,7 @@ CREATE POLICY "Users can view own contacts" ON contacts
   );
 
 -- Lead handoffs policies
+DROP POLICY IF EXISTS "Users can view handoffs for their contacts or assigned to them" ON lead_handoffs;
 CREATE POLICY "Users can view handoffs for their contacts or assigned to them" ON lead_handoffs
   FOR SELECT USING (
     contact_id IN (SELECT id FROM contacts WHERE user_id = auth.uid())
@@ -584,30 +625,36 @@ CREATE POLICY "Users can view handoffs for their contacts or assigned to them" O
     OR from_user_id = auth.uid()
   );
 
+DROP POLICY IF EXISTS "Users can create handoffs" ON lead_handoffs;
 CREATE POLICY "Users can create handoffs" ON lead_handoffs
   FOR INSERT WITH CHECK (
     contact_id IN (SELECT id FROM contacts WHERE user_id = auth.uid())
     OR from_user_id = auth.uid()
   );
 
+DROP POLICY IF EXISTS "Users can update handoffs assigned to them" ON lead_handoffs;
 CREATE POLICY "Users can update handoffs assigned to them" ON lead_handoffs
   FOR UPDATE USING (to_user_id = auth.uid());
 
 -- Team notes policies
+DROP POLICY IF EXISTS "Users can view team notes for their team contacts" ON team_notes;
 CREATE POLICY "Users can view team notes for their team contacts" ON team_notes
   FOR SELECT USING (
     team_id IN (SELECT team_id FROM team_members WHERE user_id = auth.uid())
   );
 
+DROP POLICY IF EXISTS "Users can create team notes" ON team_notes;
 CREATE POLICY "Users can create team notes" ON team_notes
   FOR INSERT WITH CHECK (
     auth.uid() = user_id
     AND team_id IN (SELECT team_id FROM team_members WHERE user_id = auth.uid())
   );
 
+DROP POLICY IF EXISTS "Users can update own team notes" ON team_notes;
 CREATE POLICY "Users can update own team notes" ON team_notes
   FOR UPDATE USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can delete own team notes" ON team_notes;
 CREATE POLICY "Users can delete own team notes" ON team_notes
   FOR DELETE USING (auth.uid() = user_id);
 
