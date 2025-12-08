@@ -40,15 +40,22 @@ ClosePro can automatically sync emails from Gmail and Outlook, logging them as a
 
 ### Outlook OAuth Setup
 
-1. **Go to Azure Portal**
-   - Visit [portal.azure.com](https://portal.azure.com)
-   - Sign in with Microsoft account
+1. **Create Free Azure Account** (If using personal Microsoft account)
+   - Visit [azure.microsoft.com/free](https://azure.microsoft.com/free)
+   - Sign up with your Microsoft account (live.com, outlook.com, hotmail.com)
+   - Complete verification (credit card may be required but won't be charged for free tier)
+   - This gives you access to Azure Portal with your personal account
+   - **Note**: App registrations are completely free - you won't be charged for OAuth setup
 
-2. **Register Application**
+2. **Go to Azure Portal**
+   - Visit [portal.azure.com](https://portal.azure.com)
+   - Sign in with your Microsoft account (should work after step 1)
+
+3. **Register Application**
    - Azure Active Directory → App registrations
    - Click "New registration"
    - Name: "ClosePro CRM"
-   - Supported account types: "Accounts in any organizational directory and personal Microsoft accounts"
+   - Supported account types: **"Accounts in any organizational directory and personal Microsoft accounts"** (important!)
    - Redirect URI:
      - Platform: **Web**
      - URI: `http://localhost:5173/email-settings` (development)
@@ -129,6 +136,37 @@ Add to Vercel/Netlify environment variables:
 - `VITE_OUTLOOK_CLIENT_SECRET`
 
 ## Troubleshooting
+
+### Azure Portal Access Error: "AADSTS50020: User account does not exist in tenant"
+
+**Problem**: You're trying to access Azure Portal with a personal Microsoft account (live.com, outlook.com, hotmail.com) that hasn't been set up for Azure.
+
+**Solutions**:
+
+1. **Create Free Azure Account** (Recommended)
+   - Go to [azure.microsoft.com/free](https://azure.microsoft.com/free)
+   - Click "Start free" and sign up with your Microsoft account
+   - Complete verification (credit card may be required but free tier won't charge)
+   - Once set up, you can access Azure Portal with your personal account
+   - **Note**: Free tier includes $200 credit for 30 days, then pay-as-you-go (app registration is free)
+
+2. **Use Microsoft 365 Developer Program** (Alternative)
+   - Visit [developer.microsoft.com/microsoft-365/dev-program](https://developer.microsoft.com/microsoft-365/dev-program)
+   - Sign up for free developer account
+   - Includes Azure AD access for testing
+
+3. **Use Work/School Account** (If available)
+   - If you have access to a work or school Microsoft account, use that instead
+   - These accounts typically have Azure access already configured
+
+4. **Alternative: Use Gmail Only** (Temporary)
+   - You can proceed with just Gmail OAuth for now
+   - Add Outlook support later when Azure account is set up
+
+**After Creating Azure Account**:
+- Wait 5-10 minutes for account to fully activate
+- Sign out and sign back into Azure Portal
+- You should now be able to access "App registrations"
 
 ### "Client ID not configured"
 - Check `.env` file exists
